@@ -6,7 +6,7 @@ int islandAmount = 50;
 
 string worldType = "default";
 
-Console.WriteLine("TextWorld V0.1 Loaded!");
+Console.WriteLine("TextWorld V0.2 Loaded!");
 
 
 //Idea: XY
