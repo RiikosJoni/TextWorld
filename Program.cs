@@ -1,25 +1,45 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
-using System.Linq;
 
-int worldSize = 40; //World size in tiles (50 = 50 x 50)
-int islandAmount = 5; //How many island seeds are planted
+[DllImport("kernel32.dll", SetLastError = true)] //I have little to no idea what this is, it makes the text colorful Credit: Alexei Shcherbakov
+static extern bool SetConsoleMode(IntPtr hConsoleHandle, int mode);
+[DllImport("kernel32.dll", SetLastError = true)]
+static extern bool GetConsoleMode(IntPtr handle, out int mode);
+
+[DllImport("kernel32.dll", SetLastError = true)]
+static extern IntPtr GetStdHandle(int handle);
+
+var handle = GetStdHandle(-11);
+int mode;
+GetConsoleMode(handle, out mode);
+SetConsoleMode(handle, mode | 0x4);
+
+
+int defaultTextColor = 15;
+int defaultTextBackgroundColor = 0;
+
+int worldSize = 100; //World size in tiles (50 = 50 x 50)
+int islandAmount = 20; //How many island seeds are planted
 
 float temperature = 1f; //A number between 0 and 2. Smaller number makes ice biomes more common and larger numbers make deserts more common
 
-int seaLevel = 8;
+int seaLevel = 8; //Changes how high the sea level is. Larger numbers mean lower sea level. >9 means no sea, <1 means no land. 8 is the default
 
+bool generateFeatures = true;
 string worldType = "default";
 
 Console.WriteLine("TextWorld V0.2 Loaded!");
 
-string[,] worldDepth = GenerateWorldDepth(worldSize, islandAmount, temperature);
-string[,] world = GenerateWorld(worldSize, worldDepth, seaLevel, worldType);
-string[,] worldStructures;
-string[,] worldEntities;
+Console.ReadLine();
 
-RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'a');
+string[,] worldDepth = GenerateWorldDepth(worldSize, islandAmount, temperature); //Generates the depthmap
+string[,] world = GenerateWorld(worldSize, worldDepth, seaLevel, generateFeatures, worldType); //Generates the world map
+string[,] worldStructures; //Generates structures
+string[,] worldEntities; //Generates entities
+
+RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'a'); //Renders the world map
 
 string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature){
     string[,] world = new String[worldSize, worldSize];
@@ -55,7 +75,55 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature)
 
     RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
-    for (int gen1 = 0; gen1 < 5; gen1++)
+    for (int x = 0; x < worldSize; x++)
+    {
+        for (int y = 0; y < worldSize; y++)
+        {
+            switch (world[x, y])
+            {
+                case "00":
+                    for (int extendChance = 0; extendChance < 3; extendChance++)
+                    {
+                        int xPosition = rand.Next(-1, 2);
+                        int yPosition = rand.Next(-1, 2);
+
+                        if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] == "99")
+                        {
+                            world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "00";
+                        }
+                    }
+                    break;
+                case "0C":
+                    for (int extendChance = 0; extendChance < 3; extendChance++)
+                    {
+                        int xPosition = rand.Next(-1, 2);
+                        int yPosition = rand.Next(-1, 2);
+
+                        if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] == "99")
+                        {
+                            world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "0C";
+                        }
+                    }
+                    break;
+                case "0H":
+                    for (int extendChance = 0; extendChance < 3; extendChance++)
+                    {
+                        int xPosition = rand.Next(-1, 2);
+                        int yPosition = rand.Next(-1, 2);
+
+                        if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] == "99")
+                        {
+                            world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "0H";
+                        }
+                    }
+                    break;
+            }
+        }
+    }
+
+    //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
+
+    for (int gen2 = 0; gen2 < 5; gen2++)
     {
         for (int x = 0; x < worldSize; x++)
         {
@@ -103,30 +171,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature)
             }
         }
     }
-    RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
-
-    for (int gen2 = 0; gen2 < 5; gen2++)
-    {
-        for (int x = 0; x < worldSize; x++)
-        {
-            for (int y = 0; y < worldSize; y++)
-            {
-                switch (world[x, y])
-                {
-                    case "33":
-                        ExtendLand(x, y, worldLimit, world, "44", "55");
-                        break;
-                    case "3C":
-                        ExtendLand(x, y, worldLimit, world, "4C", "5C");
-                        break;
-                    case "3H":
-                        ExtendLand(x, y, worldLimit, world, "4H", "5H");
-                        break;
-                }
-            }
-        }
-    }
-    RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
+    //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
     for (int gen3 = 0; gen3 < 5; gen3++)
     {
@@ -158,7 +203,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature)
             }
         }
     }
-    RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
+    //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
     for (int gen4 = 0; gen4 < 5; gen4++)
     {
@@ -204,16 +249,16 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature)
     return world;
 }
 
-string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, string worldType)
+string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool generateFeatures, string worldType)
 {
-    string[,] world = new String[worldSize, worldSize];
+    string[,] world = new String[worldSize, worldSize]; //Generates empty map
     var rand = new Random();
 
     int worldLimit = worldSize - 1;
 
     for (int x = 0; x < worldSize; x++)
     {
-        for (int y = 0; y < worldSize; y++)
+        for (int y = 0; y < worldSize; y++) //Fills the map with empty spaace
         {
             world[x, y] = "[]";
         }
@@ -221,397 +266,87 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, string 
 
     for (int x = 0; x < worldSize; x++)
     {
-        for (int y = 0; y < worldSize; y++)
+        for (int y = 0; y < worldSize; y++) //Creates world based on heightmap
         {
-            switch (depthMap[x, y][0].ToString())
+            if (Convert.ToInt16(depthMap[x, y][0].ToString()) == seaLevel)
             {
-                case "9":
-                    if (seaLevel <= 9) //Checks if it's under the sea level
+                if (depthMap[x, y][1].ToString() == "C") //Turns into ice if on the the biome
+                {
+                    world[x, y] = "II";
+                }
+                else
+                {
+                    world[x, y] = "WW";
+                }
+            }
+            else if (Convert.ToInt16(depthMap[x, y][0].ToString()) > seaLevel)
+            {
+                if (depthMap[x, y][1].ToString() == "C") //Turns into ice if on the the biome
+                {
+                    world[x, y] = "II";
+                }
+                else
+                {
+                    world[x, y] = "WD";
+                }
+            }
+            else if (Convert.ToInt16(depthMap[x, y][0].ToString()) > seaLevel - 3)
+            {
+                //if (depthMap[x, y][1].ToString() == "C") //Creates rocky beach
+                //{
+                    //world[x, y] = "rr";
+                //}
+                //else
+                //{
+                    world[x, y] = "ss";
+                //}
+            }
+            else if (Convert.ToInt16(depthMap[x, y][0].ToString()) > seaLevel - 6)
+            {
+                if (depthMap[x, y][1].ToString() == "C")
+                {
+                    world[x, y] = "ff";
+                }
+                else if (depthMap[x, y][1].ToString() == "H")
+                {
+                    world[x, y] = "ss";
+                }
+                else
+                {
+                    world[x, y] = "gg";
+                }
+            }
+            else
+            {
+                if (depthMap[x, y][1].ToString() == "C")
+                {
+                    world[x, y] = "FF";
+                }
+                else if (depthMap[x, y][1].ToString() == "H")
+                {
+                    world[x, y] = "SS";
+                }
+                else
+                {
+                    world[x, y] = "GG";
+                }
+            }
+        }
+    }
+
+    if (generateFeatures == true) //Generates features
+    {
+        for (int x = 0; x < worldSize; x++)
+        {
+            for (int y = 0; y < worldSize; y++)
+            {
+                if (depthMap[x, y][1].ToString() == "H" && rand.Next(0, 400) == 0)
+                {
+                    if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
                     {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
+                        GenerateFeature(x, y, worldSize, world, "oasis");
                     }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "ss";
-                        }
-                        else
-                        {
-                            world[x, y] = "rr";
-                        }
-                    }
-                    break;
-                case "8":
-                    if (seaLevel <= 8) //Checks if it's under the sea level
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else
-                    {
-                        world[x, y] = "ss";
-                    }
-                    break;
-                case "7":
-                    if (seaLevel <= 7) //Checks if it's under the sea level
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 9) //Checks if it's over the sea
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else //Checks if it's far enough from the sea to grow grass
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    break;
-                case "6":
-                    if (seaLevel <= 6)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 8)
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    break;
-                case "5":
-                    if (seaLevel <= 5)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 7)
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else if (seaLevel <= 10)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "FF";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "GG";
-                        }
-                    }
-                    break;
-                case "4":
-                    if (seaLevel <= 4)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 6)
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else if (seaLevel <= 9)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "FF";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "GG";
-                        }
-                    }
-                    break;
-                case "3":
-                    if (seaLevel <= 3)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 5)
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else if (seaLevel <= 8)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "FF";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "GG";
-                        }
-                    }
-                    break;
-                case "2":
-                    if (seaLevel <= 2)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 4)
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else if (seaLevel <= 7)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "FF";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "GG";
-                        }
-                    }
-                    break;
-                case "1":
-                    if (seaLevel <= 1)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 3)
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else if (seaLevel <= 6)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "FF";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "GG";
-                        }
-                    }
-                    break;
-                case "0":
-                    if (seaLevel <= 0)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "II";
-                        }
-                        else
-                        {
-                            world[x, y] = "WW";
-                        }
-                    }
-                    else if (seaLevel <= 2)
-                    {
-                        world[x, y] = "ss";
-                    }
-                    else if (seaLevel <= 5)
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "ff";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "gg";
-                        }
-                    }
-                    else
-                    {
-                        if (depthMap[x, y][1].ToString() == "C")
-                        {
-                            world[x, y] = "FF";
-                        }
-                        else if (depthMap[x, y][1].ToString() == "H")
-                        {
-                            world[x, y] = "SS";
-                        }
-                        else
-                        {
-                            world[x, y] = "GG";
-                        }
-                    }
-                    break;
+                }
             }
         }
     }
@@ -644,6 +379,37 @@ string[,] ExtendLand(int x, int y, int worldLimit, string[,] world, string chanc
     return world;
 }
 
+string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string type)
+{
+    var rand = new Random();
+
+    int worldLimit = worldSize - 1;
+
+    switch (type)
+    {
+        case "oasis":
+            world[x, y] = "ww";
+
+            for (int extendChance = 0; extendChance < 5; extendChance++)
+            {
+                int xPosition = rand.Next(-1, 2);
+                int yPosition = rand.Next(-1, 2);
+
+                world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "ww";
+                for (int extendChance2 = 0; extendChance2 < 2; extendChance2++)
+                {
+                    int xPosition2 = rand.Next(-1, 2);
+                    int yPosition2 = rand.Next(-1, 2);
+
+                    world[Math.Clamp((x + xPosition + xPosition2), 0, worldLimit), Math.Clamp((y + yPosition + yPosition2), 0, worldLimit)] = "GH";
+                }
+            }
+            break;
+    }
+
+    return world;
+}
+
 static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, int yStart, int yEnd, char renderer)
 {
     int tileNum = 0;
@@ -666,52 +432,63 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
                         switch (world[x, y][0].ToString())
                         {
                             case "W": //Deep water
-                                Console.BackgroundColor = ConsoleColor.DarkBlue;
-                                Console.ForegroundColor = ConsoleColor.Blue;
+                                SetTextBackgroundColor(27);
+                                SetTextColor(27);
                                 break;
                             case "w": //Shallow water
-                                Console.BackgroundColor = ConsoleColor.DarkCyan;
-                                Console.ForegroundColor = ConsoleColor.Blue;
+                                SetTextBackgroundColor(12);
+                                SetTextColor(12);
                                 break;
                             case "I": //Ice
-                                Console.BackgroundColor = ConsoleColor.Cyan;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(14);
+                                SetTextColor(1);
                                 break;
                             case "r": //Rocky terrain
-                                Console.BackgroundColor = ConsoleColor.DarkGray;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(242);
+                                SetTextColor(1);
                                 break;
                             case "R": //Rock
-                                Console.BackgroundColor = ConsoleColor.DarkGray;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(8);
+                                SetTextColor(1);
                                 break;
                             case "s": //Sand
-                                Console.BackgroundColor = ConsoleColor.Yellow;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(11);
+                                SetTextColor(1);
                                 break;
                             case "S": //Sand Dune
-                                Console.BackgroundColor = ConsoleColor.DarkYellow;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(186);
+                                SetTextColor(1);
                                 break;
                             case "f": //Snow
-                                Console.BackgroundColor = ConsoleColor.White;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(15);
+                                SetTextColor(1);
                                 break;
                             case "F": //Snow hill
-                                Console.BackgroundColor = ConsoleColor.Gray;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(7);
+                                SetTextColor(1);
                                 break;
                             case "g": //Ground
-                                Console.BackgroundColor = ConsoleColor.Green;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(10);
+                                SetTextColor(1);
                                 break;
                             case "G": //High ground
-                                Console.BackgroundColor = ConsoleColor.DarkGreen;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                if (world[x, y][1].ToString() == "H")
+                                {
+                                    SetTextBackgroundColor(70);
+                                }
+                                else
+                                {
+                                    SetTextBackgroundColor(2);
+                                }
+                                SetTextColor(1);
+                                break;
+                            case "L": //Lava
+                                SetTextBackgroundColor(9);
+                                SetTextColor(9);
                                 break;
                             default:
-                                Console.BackgroundColor = ConsoleColor.Black;
-                                Console.ForegroundColor = ConsoleColor.Red;
+                                SetTextBackgroundColor(0);
+                                SetTextColor(1);
                                 break;
                         }
                         break;
@@ -766,8 +543,8 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
                         }
                         break;
                     default:
-                        Console.BackgroundColor = ConsoleColor.Black;
-                        Console.ForegroundColor = ConsoleColor.Red;
+                        SetTextBackgroundColor(0);
+                        SetTextColor(1);
                         break;
                 }
 
@@ -787,4 +564,20 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
 
     Console.ReadLine();
     Console.Clear();
+}
+
+static void SetTextColor(int colorIndex)
+{
+    Console.Write("\x1b[38;5;" + colorIndex + "m");
+}
+
+static void SetTextBackgroundColor(int colorIndex)
+{
+    Console.Write("\x1b[48;5;" + colorIndex + "m");
+}
+
+static void ResetTextColor(int defaultColor, int defaultBackgroundColor)
+{
+    Console.Write("\x1b[38;5;" + defaultColor + "m");
+    Console.Write("\x1b[48;5;" + defaultBackgroundColor + "m");
 }
