@@ -73,7 +73,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature)
         }
     }
 
-    RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
+    //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
     for (int x = 0; x < worldSize; x++)
     {
@@ -244,7 +244,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature)
             }
         }
     }
-    RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
+    //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
     return world;
 }
@@ -340,11 +340,36 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
         {
             for (int y = 0; y < worldSize; y++)
             {
-                if (depthMap[x, y][1].ToString() == "H" && rand.Next(0, 400) == 0)
+                if (depthMap[x, y][1].ToString() == "H" && rand.Next(0, 300) == 0)
                 {
                     if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
                     {
-                        GenerateFeature(x, y, worldSize, world, "oasis");
+                        GenerateFeature(x, y, worldSize, world, depthMap, "oasis");
+                    }
+                }
+                if (world[x, y][0].ToString() != "W" && rand.Next(0, 1500) == 0)
+                {
+                    GenerateFeature(x, y, worldSize, world, depthMap, "river");
+                }
+            }
+        }
+    }
+
+    //Post-generation; Making the shores look nicer and stuff
+    for (int x = 0; x < worldSize; x++)
+    {
+        for (int y = 0; y < worldSize; y++)
+        {
+            if (world[x, y][1].ToString() == "W")
+            {
+                for (int genTry = 0; genTry < 3; genTry++)
+                {
+                    int xPosition = rand.Next(-1, 2);
+                    int yPosition = rand.Next(-1, 2);
+
+                    if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "W" && world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "I")
+                    {
+                        world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "ww";
                     }
                 }
             }
@@ -379,7 +404,7 @@ string[,] ExtendLand(int x, int y, int worldLimit, string[,] world, string chanc
     return world;
 }
 
-string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string type)
+string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,] depthMap, string type)
 {
     var rand = new Random();
 
@@ -404,6 +429,80 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string t
                     world[Math.Clamp((x + xPosition + xPosition2), 0, worldLimit), Math.Clamp((y + yPosition + yPosition2), 0, worldLimit)] = "GH";
                 }
             }
+            break;
+        case "river":
+            int newX = x;
+            int newY = y;
+
+            int xDirection = rand.Next(-1, 2);
+            int yDirection = rand.Next(-1, 2);
+
+            for (int extendChance = 0; extendChance < rand.Next(worldSize / 10, worldSize / 2); extendChance++)
+            {
+                int xPosition = rand.Next(-1, 2) + xDirection;
+                int yPosition = rand.Next(-1, 2) + yDirection;
+
+                int genTries = 0;
+                bool canGen = true;
+
+                while (world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "W" | world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "w")
+                {
+                    if (genTries > 100) //Makes sure so the program doesnt get stuck
+                    {
+                        canGen = false;
+                        break;
+                    }
+                    genTries++;
+
+                    xPosition = rand.Next(-1, 2) + xDirection;
+                    yPosition = rand.Next(-1, 2) + yDirection;
+                }
+
+                if (canGen)
+                {
+                    if (world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][0].ToString() == "f" | world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][0].ToString() == "F")
+                    {
+                        world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)] = "II";
+                        world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)] = "II";
+                    }
+                    else if (depthMap[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][1].ToString() != "H")
+                    {
+                        world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)] = "WR";
+                        world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)] = "WR";
+                    }
+                }
+
+                newX += xPosition;
+                newY += yPosition;
+
+                if (canGen)
+                {
+                    for (int extendChance2 = 0; extendChance2 < 2; extendChance2++)
+                    {
+                        int xPosition2 = rand.Next(-1, 2);
+                        int yPosition2 = rand.Next(-1, 2);
+
+                        if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "G")
+                        {
+                            world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "gg";
+                        }
+                        else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "S")
+                        {
+                            world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "ss";
+                        }
+                        else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "F")
+                        {
+                            world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "ff";
+                        }
+                    }
+                }
+            }
+
+            if (rand.Next(0, 4) == 0)
+            {
+                GenerateFeature(x, y, worldSize, world, depthMap, "river");
+            }
+
             break;
     }
 
