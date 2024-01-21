@@ -17,60 +17,118 @@ int mode;
 GetConsoleMode(handle, out mode);
 SetConsoleMode(handle, mode | 0x4);
 
+string version = "V0.4";
 
-int defaultTextColor = 15;
+int defaultTextColor = 15; //Default text color used for the edges of the screen and other menus
 int defaultTextBackgroundColor = 0;
 
 int worldSize = 100; //World size in tiles (50 = 50 x 50)
 int islandAmount = 20; //How many island seeds are planted
 
-float temperature = 1f; //A number between 0 and 2. Smaller number makes ice biomes more common and larger numbers make deserts more common
+float temperature = 50f; //A number between 0 and 100. Smaller number makes ice biomes more common and larger numbers make deserts more common
+
+bool generateBiomes = true; //Toggles the generation of random biomes. If false, uses mainBiome instead
+bool generateSpecialBiomes = true; //Toggles generation of rare "special biomes" such as the volcano biome, candy biome and the reverse biome
+
+char mainBiome = 'V'; //This will be the only biome that's generated if generateBiomes is set to false.
 
 int seaLevel = 8; //Changes how high the sea level is. Larger numbers mean lower sea level. >9 means no sea, <1 means no land. 8 is the default
 
-bool generateFeatures = true;
+bool generateFeatures = true; //Toggles generation of rivers, volcanoes, rocks, etc.
+
 string worldType = "default";
 
-Console.WriteLine("TextWorld V0.3 Loaded!");
+Console.WriteLine("TextWorld " + version + " Loaded!");
 
 Console.ReadLine();
 
-string[,] worldDepth = GenerateWorldDepth(worldSize, islandAmount, temperature); //Generates the depthmap
+string[,] worldDepth = GenerateWorldDepth(worldSize, islandAmount, temperature, generateBiomes, generateSpecialBiomes, mainBiome, worldType); //Generates the depthmap
 string[,] world = GenerateWorld(worldSize, worldDepth, seaLevel, generateFeatures, worldType); //Generates the world map
 string[,] worldStructures; //Generates structures
 string[,] worldEntities; //Generates entities
 
 RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'a'); //Renders the world map
 
-string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature){
-    string[,] world = new String[worldSize, worldSize];
-    var rand = new Random();
+string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature, bool generateBiomes, bool generateSpecialBiomes, char mainBiome, string worldType){
 
+    string[,] world = new String[worldSize, worldSize]; //Creates the map
+
+    var rand = new Random();
     int worldLimit = worldSize - 1;
 
     for (int x = 0; x < worldSize; x++)
     {
         for (int y = 0; y < worldSize; y++)
         {
-            world[x, y] = "99";
+            world[x, y] = "99"; //Fills the map with "empty space"
         }
     }
 
-    for (int islands = 0; islands < islandAmount; islands++)
+    for (int islands = 0; islands < islandAmount; islands++) //Generates islands
     {
-        float randTemp = rand.Next(1, 100) * temperature;
-
-        if (randTemp <= 20f) 
+        if (temperature == 50f)
         {
-            world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = "0C";
+            temperature = rand.Next(40, 60);
+            Console.Write("Global temperature modifier is: " + (temperature - 50) + "!");
         }
-        else if (randTemp >= 80f)
+
+        float randTemp = rand.Next(1, 100) * (temperature / 100); //Creates a random temperature
+
+        Console.Write(randTemp);
+
+        int islandHeight = 0;
+
+        if (rand.Next(0, 2) != 0) //Sets the island starting height
         {
-            world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = "0H";
+            islandHeight = rand.Next(0, 5);
+        }
+
+        if (generateBiomes) //Detemines the biome
+        {
+            if (generateSpecialBiomes && rand.Next(0, 21) == 0)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}V";
+            }
+            else if (generateSpecialBiomes && rand.Next(0, 51) == 1)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}3";
+            }
+            else if (generateSpecialBiomes && rand.Next(0, 51) == 2)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}9";
+            }
+            else if (randTemp <= 7f)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}C";
+            }
+            else if (randTemp <= 15f)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}M";
+            }
+            else if (randTemp <= 25f)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}T";
+            }
+            else if (randTemp >= 93f)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}D";
+            }
+            else if (randTemp >= 85f)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}S";
+            }
+            else if (randTemp >= 75f)
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}J";
+            }
+            else
+            {
+                world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}0";
+            }
         }
         else
         {
-            world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = "00";
+            world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}{mainBiome}";
         }
     }
 
@@ -191,68 +249,91 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
     {
         for (int y = 0; y < worldSize; y++) //Creates world based on heightmap
         {
+            string sandTile = "ss";
+            string lowGroundTile = "dd";
+            string highGroundTile = "DD";
+            string waterTile = "WW";
+            string deepWaterTile = "WD";
+
+            switch (depthMap[x, y][1].ToString()) { //Determine tiles
+                case "C":
+                    lowGroundTile = "ff";
+                    highGroundTile = "FF";
+                    waterTile = "II";
+
+                    break;
+                case "T":
+                    lowGroundTile = "gC";
+                    highGroundTile = "GC";
+                    waterTile = "II";
+
+                    break;
+                case "M":
+                    sandTile = "rr";
+                    lowGroundTile = "rM";
+                    highGroundTile = "RM";
+
+                    break;
+                case "0":
+                    lowGroundTile = "gg";
+                    highGroundTile = "GG";
+
+                    break;
+                case "J":
+                    sandTile = "ss";
+                    lowGroundTile = "gJ";
+                    highGroundTile = "GJ";
+
+                    break;
+                case "S":
+                    lowGroundTile = "gH";
+                    highGroundTile = "GH";
+
+                    break;
+                case "D":
+                    lowGroundTile = "ss";
+                    highGroundTile = "SS";
+
+                    break;
+                case "V":
+                    sandTile = "sV";
+                    lowGroundTile = "rV";
+                    highGroundTile = "RV";
+
+                    break;
+                case "3":
+                    sandTile = "s3";
+                    lowGroundTile = "g3";
+                    highGroundTile = "G3";
+
+                    break;
+                case "9":
+                    sandTile = "s9";
+                    lowGroundTile = "g9";
+                    highGroundTile = "G9";
+
+                    break;
+            }
+
             if (Convert.ToInt16(depthMap[x, y][0].ToString()) == seaLevel)
             {
-                if (depthMap[x, y][1].ToString() == "C") //Turns into ice if on the the biome
-                {
-                    world[x, y] = "II";
-                }
-                else
-                {
-                    world[x, y] = "WW";
-                }
+                world[x, y] = waterTile;
             }
             else if (Convert.ToInt16(depthMap[x, y][0].ToString()) > seaLevel)
             {
-                if (depthMap[x, y][1].ToString() == "C") //Turns into ice if on the the biome
-                {
-                    world[x, y] = "II";
-                }
-                else
-                {
-                    world[x, y] = "WD";
-                }
+                world[x, y] = deepWaterTile;
             }
             else if (Convert.ToInt16(depthMap[x, y][0].ToString()) > seaLevel - 3)
             {
-                //if (depthMap[x, y][1].ToString() == "C") //Creates rocky beach
-                //{
-                    //world[x, y] = "rr";
-                //}
-                //else
-                //{
-                    world[x, y] = "ss";
-                //}
+                world[x, y] = sandTile;
             }
             else if (Convert.ToInt16(depthMap[x, y][0].ToString()) > seaLevel - 6)
             {
-                if (depthMap[x, y][1].ToString() == "C")
-                {
-                    world[x, y] = "ff";
-                }
-                else if (depthMap[x, y][1].ToString() == "H")
-                {
-                    world[x, y] = "ss";
-                }
-                else
-                {
-                    world[x, y] = "gg";
-                }
+                world[x, y] = lowGroundTile;
             }
             else
             {
-                if (depthMap[x, y][1].ToString() == "C")
-                {
-                    world[x, y] = "FF";
-                }
-                else if (depthMap[x, y][1].ToString() == "H")
-                {
-                    world[x, y] = "SS";
-                }
-                else
-                {
-                    world[x, y] = "GG";
-                }
+                world[x, y] = highGroundTile;
             }
         }
     }
@@ -263,7 +344,14 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
         {
             for (int y = 0; y < worldSize; y++)
             {
-                if (depthMap[x, y][1].ToString() == "H" && rand.Next(0, 300) == 0)
+                if (depthMap[x, y][1].ToString() == "D" && rand.Next(0, 300) == 0)
+                {
+                    if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "oasis", 'a');
+                    }
+                }
+                if (depthMap[x, y][1].ToString() == "S" && rand.Next(0, 500) == 0)
                 {
                     if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
                     {
@@ -274,6 +362,10 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
                 {
                     GenerateFeature(x, y, worldSize, world, depthMap, "river", 'a');
                 }
+                if (world[x, y][0].ToString() != "W" && depthMap[x, y][1].ToString() == "V" && rand.Next(0, 500) == 0)
+                {
+                    GenerateFeature(x, y, worldSize, world, depthMap, "river", 'b');
+                }
             }
         }
         for (int x = 0; x < worldSize; x++)
@@ -281,6 +373,13 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
             for (int y = 0; y < worldSize; y++)
             {
                 if (depthMap[x, y][1].ToString() != "C" && rand.Next(0, 6000) == 0)
+                {
+                    if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "volcano", 'a');
+                    }
+                }
+                if (depthMap[x, y][1].ToString() == "V" && rand.Next(0, 500) == 0)
                 {
                     if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
                     {
@@ -474,7 +573,7 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
                     int xPosition2 = rand.Next(-1, 2);
                     int yPosition2 = rand.Next(-1, 2);
 
-                    world[Math.Clamp((x + xPosition + xPosition2), 0, worldLimit), Math.Clamp((y + yPosition + yPosition2), 0, worldLimit)] = "GH";
+                    world[Math.Clamp((x + xPosition + xPosition2), 0, worldLimit), Math.Clamp((y + yPosition + yPosition2), 0, worldLimit)] = "GD";
                 }
             }
             break;
@@ -559,7 +658,7 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
 
                     break;
                 case 'b':
-                    for (int extendChance = 0; extendChance < rand.Next(worldSize / 20, worldSize / 15); extendChance++)
+                    for (int extendChance = 0; extendChance < rand.Next(worldSize / 20, worldSize / 10); extendChance++)
                     {
                         int xPosition = rand.Next(-1, 2) + xDirection;
                         int yPosition = rand.Next(-1, 2) + yDirection;
@@ -606,35 +705,35 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
 
                                 if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "G")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rr";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
                                 }
                                 else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "S")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rr";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
                                 }
                                 else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "F")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rr";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
                                 }
                                 else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "g")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rr";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
                                 }
                                 else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "s")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rr";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
                                 }
                                 else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "f")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rr";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
                                 }
                                 else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "W")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "RR";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "RV";
                                 }
                                 else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "w")
                                 {
-                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rr";
+                                    world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
                                 }
                             }
                         }
@@ -673,12 +772,12 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
             }
 
             CreateCircle(x, y, size + 2, false, "null", "rr", world, worldSize);
-            CreateCircle(x, y, size + 1, false, "rr", "null", world, worldSize);
-            CreateCircle(x, y, size, false, "RR", "rr", world, worldSize);
-            CreateCircle(x, y, size - 1, false, "RR", "RR", world, worldSize);
-            CreateCircle(x, y, size - 2, false, "RR", "RR", world, worldSize);
-            CreateCircle(x, y, size - 3, false, "RR", "RR", world, worldSize);
-            CreateCircle(x, y, size - 4, false, "RR", "LL", world, worldSize);
+            CreateCircle(x, y, size + 1, false, "rV", "null", world, worldSize);
+            CreateCircle(x, y, size, false, "RV", "rV", world, worldSize);
+            CreateCircle(x, y, size - 1, false, "RV", "Rv", world, worldSize);
+            CreateCircle(x, y, size - 2, false, "Rv", "Rv", world, worldSize);
+            CreateCircle(x, y, size - 3, false, "Rv", "Rv", world, worldSize);
+            CreateCircle(x, y, size - 4, false, "Rv", "LL", world, worldSize);
 
             for ( int lavaCircle = 0; lavaCircle < size - 3; lavaCircle++)
             {
@@ -707,13 +806,16 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
 static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, int yStart, int yEnd, char renderer)
 {
     int tileNum = 0;
-    for (int x = 0; x < worldSize; x++)
+    for (int x = xStart; x < xEnd; x++)
     {
-       for (int y = 0; y < worldSize; y++)
+        for (int y = yStart; y < yEnd; y++)
         {
-            if (x >= xStart && x < xEnd && y >= yStart && y <= yEnd)
+            int limitedX = Math.Clamp(x, 0, worldSize - 1);
+            int limitedY = Math.Clamp(y, 0, worldSize - 1);
+
+            if (limitedX >= xStart && limitedX < xEnd && limitedY >= yStart && limitedY <= yEnd)
             {
-                if (Convert.ToDecimal(tileNum) / Convert.ToDecimal(xStart - xEnd) == Math.Round(Convert.ToDecimal(tileNum) / Convert.ToDecimal(xStart - xEnd)))
+                if ((float)tileNum / (xStart - xEnd) == Math.Round((float)tileNum / (xStart - xEnd)))
                 {
                     Console.Write("\n");
                 }
@@ -723,7 +825,7 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
                 switch (renderer)
                 {
                     case 'a':
-                        switch (world[x, y][0].ToString())
+                        switch (world[limitedX, limitedY][0].ToString())
                         {
                             case "W": //Deep water
                                 SetTextBackgroundColor(27);
@@ -742,11 +844,33 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
                                 SetTextColor(1);
                                 break;
                             case "R": //Rock
-                                SetTextBackgroundColor(241);
+                                if (world[limitedX, limitedY][1].ToString() == "v")
+                                {
+                                    SetTextBackgroundColor(88);
+                                }
+                                else
+                                {
+                                    SetTextBackgroundColor(241);
+                                }
                                 SetTextColor(1);
                                 break;
                             case "s": //Sand
-                                SetTextBackgroundColor(11);
+                                if (world[limitedX, limitedY][1].ToString() == "V")
+                                {
+                                    SetTextBackgroundColor(238);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "3")
+                                {
+                                    SetTextBackgroundColor(5);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "9")
+                                {
+                                    SetTextBackgroundColor(19);
+                                }
+                                else
+                                {
+                                    SetTextBackgroundColor(11);
+                                }
                                 SetTextColor(1);
                                 break;
                             case "S": //Sand Dune
@@ -761,14 +885,53 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
                                 SetTextBackgroundColor(7);
                                 SetTextColor(1);
                                 break;
-                            case "g": //Ground
-                                SetTextBackgroundColor(10);
+                            case "g": //Grass
+                                if (world[limitedX, limitedY][1].ToString() == "H")
+                                {
+                                    SetTextBackgroundColor(106);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "C")
+                                {
+                                    SetTextBackgroundColor(29);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "J")
+                                {
+                                    SetTextBackgroundColor(28);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "3")
+                                {
+                                    SetTextBackgroundColor(82);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "9")
+                                {
+                                    SetTextBackgroundColor(213);
+                                }
+                                else
+                                {
+                                    SetTextBackgroundColor(10);
+                                }
                                 SetTextColor(1);
                                 break;
-                            case "G": //High ground
-                                if (world[x, y][1].ToString() == "H")
+                            case "G": //High grass
+                                if (world[limitedX, limitedY][1].ToString() == "H")
                                 {
                                     SetTextBackgroundColor(70);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "C")
+                                {
+                                    SetTextBackgroundColor(35);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "J")
+                                {
+                                    SetTextBackgroundColor(22);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "3")
+                                {
+                                    SetTextBackgroundColor(86);
+                                }
+                                else if (world[limitedX, limitedY][1].ToString() == "9")
+                                {
+                                    SetTextBackgroundColor(219);
                                 }
                                 else
                                 {
@@ -776,8 +939,16 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
                                 }
                                 SetTextColor(1);
                                 break;
+                            case "d": //Ground
+                                SetTextBackgroundColor(100);
+                                SetTextColor(1);
+                                break;
+                            case "D": //High ground
+                                SetTextBackgroundColor(58);
+                                SetTextColor(1);
+                                break;
                             case "L": //Lava
-                                if (world[x, y][1].ToString() == "H")
+                                if (world[limitedX, limitedY][1].ToString() == "H")
                                 {
                                     SetTextBackgroundColor(208);
                                     SetTextColor(208);
@@ -859,7 +1030,7 @@ static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, in
                     Console.ForegroundColor = Console.BackgroundColor;
                 }
 
-                Console.Write(world[x, y]);
+                Console.Write(world[limitedX, limitedY]);
                 tileNum++;
 
                 Console.BackgroundColor = ConsoleColor.Black;
