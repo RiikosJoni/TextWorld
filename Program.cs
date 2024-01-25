@@ -22,21 +22,23 @@ string version = "V0.4";
 int defaultTextColor = 15; //Default text color used for the edges of the screen and other menus
 int defaultTextBackgroundColor = 0;
 
-int worldSize = 100; //World size in tiles (50 = 50 x 50)
-int islandAmount = 20; //How many island seeds are planted
+int worldSize = 1000; //World size in tiles (50 = 50 x 50)
+int islandAmount = 1000; //How many island seeds are planted
 
 float temperature = 50f; //A number between 0 and 100. Smaller number makes ice biomes more common and larger numbers make deserts more common
 
 bool generateBiomes = true; //Toggles the generation of random biomes. If false, uses mainBiome instead
 bool generateSpecialBiomes = true; //Toggles generation of rare "special biomes" such as the volcano biome, candy biome and the reverse biome
 
-char mainBiome = 'V'; //This will be the only biome that's generated if generateBiomes is set to false.
+char mainBiome = 'J'; //This will be the only biome that's generated if generateBiomes is set to false.
 
 int seaLevel = 8; //Changes how high the sea level is. Larger numbers mean lower sea level. >9 means no sea, <1 means no land. 8 is the default
 
 bool generateFeatures = true; //Toggles generation of rivers, volcanoes, rocks, etc.
 
 string worldType = "default";
+
+ResetTextColor(defaultTextColor, defaultTextBackgroundColor);
 
 Console.WriteLine("TextWorld " + version + " Loaded!");
 
@@ -47,11 +49,20 @@ string[,] world = GenerateWorld(worldSize, worldDepth, seaLevel, generateFeature
 string[,] worldStructures; //Generates structures
 string[,] worldEntities; //Generates entities
 
-RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'a'); //Renders the world map
+var rand = new Random();
+
+while (true)
+{
+    int camX = rand.Next(0, worldSize - 100);
+    int camY = rand.Next(0, worldSize - 100);
+
+    RenderWorld(world, worldSize, camX, camX + 100, camY, camY + 100, 'a'); //Renders the world map
+}
 
 string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature, bool generateBiomes, bool generateSpecialBiomes, char mainBiome, string worldType){
 
     string[,] world = new String[worldSize, worldSize]; //Creates the map
+    Console.WriteLine("Creating depthmap");
 
     var rand = new Random();
     int worldLimit = worldSize - 1;
@@ -64,6 +75,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature,
         }
     }
 
+    Console.WriteLine("Creating island seeds");
     for (int islands = 0; islands < islandAmount; islands++) //Generates islands
     {
         if (temperature == 50f)
@@ -72,9 +84,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature,
             Console.Write("Global temperature modifier is: " + (temperature - 50) + "!");
         }
 
-        float randTemp = rand.Next(1, 100) * (temperature / 100); //Creates a random temperature
-
-        Console.Write(randTemp);
+        float randTemp = rand.Next(1, 200) * (temperature / 100); //Creates a random temperature
 
         int islandHeight = 0;
 
@@ -89,11 +99,11 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature,
             {
                 world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}V";
             }
-            else if (generateSpecialBiomes && rand.Next(0, 51) == 1)
+            else if (generateSpecialBiomes && rand.Next(0, 81) == 1)
             {
                 world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}3";
             }
-            else if (generateSpecialBiomes && rand.Next(0, 51) == 2)
+            else if (generateSpecialBiomes && rand.Next(0, 81) == 2)
             {
                 world[rand.Next(0, worldSize), rand.Next(0, worldSize)] = $"{islandHeight}9";
             }
@@ -134,6 +144,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature,
 
     //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
+    Console.WriteLine("Extending islands");
     for (int x = 0; x < worldSize; x++)
     {
         for (int y = 0; y < worldSize; y++)
@@ -225,7 +236,7 @@ string[,] GenerateWorldDepth(int worldSize, int islandAmount, float temperature,
             }
         }
     }
-    RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
+    //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
     return world;
 }
@@ -234,6 +245,8 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
 {
     string[,] world = new String[worldSize, worldSize]; //Generates empty map
     var rand = new Random();
+
+    Console.WriteLine("Creating the map");
 
     int worldLimit = worldSize - 1;
 
@@ -259,13 +272,11 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
                 case "C":
                     lowGroundTile = "ff";
                     highGroundTile = "FF";
-                    waterTile = "II";
 
                     break;
                 case "T":
                     lowGroundTile = "gC";
                     highGroundTile = "GC";
-                    waterTile = "II";
 
                     break;
                 case "M":
@@ -340,6 +351,7 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
 
     if (generateFeatures == true) //Generates features
     {
+        Console.WriteLine("Creating water features");
         for (int x = 0; x < worldSize; x++)
         {
             for (int y = 0; y < worldSize; y++)
@@ -368,11 +380,12 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
                 }
             }
         }
+        Console.WriteLine("Creating other features");
         for (int x = 0; x < worldSize; x++)
         {
             for (int y = 0; y < worldSize; y++)
             {
-                if (depthMap[x, y][1].ToString() != "C" && rand.Next(0, 6000) == 0)
+                if (depthMap[x, y][1].ToString() != "C" && rand.Next(0, 8000) == 0)
                 {
                     if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
                     {
@@ -386,11 +399,51 @@ string[,] GenerateWorld(int worldSize, string[,] depthMap, int seaLevel, bool ge
                         GenerateFeature(x, y, worldSize, world, depthMap, "volcano", 'a');
                     }
                 }
+                if (depthMap[x, y][1].ToString() == "C" && rand.Next(0, 3) == 0)
+                {
+                    if (Convert.ToInt16(depthMap[x, y][0].ToString()) >= seaLevel)
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "ice", 'a');
+                    }
+                }
+                if (depthMap[x, y][1].ToString() == "T" && rand.Next(0, 15) == 0)
+                {
+                    if (Convert.ToInt16(depthMap[x, y][0].ToString()) >= seaLevel)
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "ice", 'a');
+                    }
+                }
+                if (depthMap[x, y][1].ToString() == "T" && rand.Next(0, 200) == 0)
+                {
+                    if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel)
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "patch", 'c');
+                    }
+                }
+                if (depthMap[x, y][1].ToString() == "M")
+                {
+                    if (Convert.ToInt16(depthMap[x, y][0].ToString()) < seaLevel - 7)
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "patch", 'm');
+                    }
+                }
+                if (depthMap[x, y][1].ToString() != "9")
+                {
+                    if (depthMap[x, y][0].ToString() != "W" && rand.Next(0, 1000) == 0) 
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "rock", 'a');
+                    }
+                    else if (depthMap[x, y][0].ToString() == "W" && rand.Next(0, 2000) == 0)
+                    {
+                        GenerateFeature(x, y, worldSize, world, depthMap, "rock", 'a');
+                    }
+                }
             }
         }
     }
 
     //Post-generation; Making the shores look nicer and stuff
+    Console.WriteLine("Making the world look nicer");
     for (int x = 0; x < worldSize; x++)
     {
         for (int y = 0; y < worldSize; y++)
@@ -587,7 +640,7 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
             switch (type2)
             {
                 case 'a':
-                    for (int extendChance = 0; extendChance < rand.Next(worldSize / 10, worldSize / 2); extendChance++)
+                    for (int extendChance = 0; extendChance < rand.Next(10, 50); extendChance++)
                     {
                         int xPosition = rand.Next(-1, 2) + xDirection;
                         int yPosition = rand.Next(-1, 2) + yDirection;
@@ -658,7 +711,7 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
 
                     break;
                 case 'b':
-                    for (int extendChance = 0; extendChance < rand.Next(worldSize / 20, worldSize / 10); extendChance++)
+                    for (int extendChance = 0; extendChance < rand.Next(5, 10); extendChance++)
                     {
                         int xPosition = rand.Next(-1, 2) + xDirection;
                         int yPosition = rand.Next(-1, 2) + yDirection;
@@ -797,6 +850,74 @@ string[,] GenerateFeature(int x, int y, int worldSize, string[,] world, string[,
                 GenerateFeature(x, y, worldSize, world, depthMap, "river", 'b');
             }
 
+            break;
+        case "patch":
+            switch (type2)
+            {
+                case 'c':
+                    for (int extendChance = 0; extendChance < 3; extendChance++)
+                    {
+                        int xPosition = rand.Next(-1, 2);
+                        int yPosition = rand.Next(-1, 2);
+
+                        CreateCircle(x + xPosition, y + yPosition, rand.Next(0, 3), true, "ff", "FF", world, worldSize);
+                    }
+                    break;
+                case 'm':
+                    CreateCircle(x, y, rand.Next(0, 2), true, "ff", "ff", world, worldSize);
+                    break;
+            }
+            break;
+        case "ice":
+
+            bool canGenerate = false;
+            for (int landTries = 0; landTries < 100; landTries++)
+            {
+                int xPosition = rand.Next(-3, 4);
+                int yPosition = rand.Next(-3, 4);
+
+                if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "W" && world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][1].ToString() == "C")
+                {
+                    canGenerate = true;
+                    break;
+                }
+                else if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "W" && world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][1].ToString() == "f")
+                {
+                    canGenerate = true;
+                    break;
+                }
+                else if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "W" && world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][1].ToString() == "F")
+                {
+                    canGenerate = true;
+                    break;
+                }
+            }
+
+            if (canGenerate)
+            {
+                world[x, y] = "II";
+
+                for (int extendChance = 0; extendChance < 5; extendChance++)
+                {
+                    int xPosition = rand.Next(-1, 2);
+                    int yPosition = rand.Next(-1, 2);
+
+                    world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "II";
+                    for (int extendChance2 = 0; extendChance2 < 2; extendChance2++)
+                    {
+                        int xPosition2 = rand.Next(-1, 2);
+                        int yPosition2 = rand.Next(-1, 2);
+
+                        world[Math.Clamp((x + xPosition + xPosition2), 0, worldLimit), Math.Clamp((y + yPosition + yPosition2), 0, worldLimit)] = "II";
+                    }
+                }
+            }
+            break;
+        case "rock":
+            world[x, y] = "ww";
+
+            CreateCircle(x, y, rand.Next(1,3), true, "rr", "RR", world, worldSize);
+            CreateCircle(x, y, rand.Next(0, 2), true, "RR", "rr", world, worldSize);
             break;
     }
 
