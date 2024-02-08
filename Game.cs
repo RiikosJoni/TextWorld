@@ -2,7 +2,9 @@ using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace TextWorld
 {
@@ -25,25 +27,231 @@ namespace TextWorld
 
             Random rand = new();
 
-            int screenWidth = GlobalVariables.screenWidth;
-            int screenHeight = GlobalVariables.screenHeight;
-
-            int worldSize = GlobalVariables.newWorldSize;
-
-            RunMainMenu();
-
-            CreateWorld();
-
             while (true)
             {
-                int camX = rand.Next(0, worldSize - 100);
-                int camY = rand.Next(0, worldSize - 100);
+                RunMainMenu();
 
-                RenderWorld(GlobalVariables.currentWorld, worldSize, camX, camX + 100, camY, camY + 100, 'a'); //Renders the world map
+                int screenWidth = GlobalVariables.screenWidth;
+                int screenHeight = GlobalVariables.screenHeight;
+
+                int worldSize = GlobalVariables.newWorldSize;
+
+                switch (GlobalVariables.newWorldGamemode)
+                {
+                    case "World Viewer":
+                        int camX = rand.Next(0, (int)Math.Clamp((worldSize - screenWidth * 0.2f), 0, worldSize));
+                        int camY = rand.Next(0, (int)Math.Clamp((worldSize - screenWidth * 0.2f), 0, worldSize));
+
+                        while (true)
+                        {
+                            ScreenTop('a');
+
+                            RenderWorld(GlobalVariables.currentWorld, worldSize, camX, camX + (int)(screenWidth * 0.5f), camY, camY + (int)(screenWidth * 0.5f), 'a'); //Renders the world map
+
+                            ScreenLeft(GlobalVariables.screenWidth / 5);
+                            ScreenLeft(GlobalVariables.screenWidth / 2 - 10);
+                            ResetTextColor(false);
+                            Console.Write("World Viewer Mode");
+
+                            ScreenLeft(GlobalVariables.screenWidth / 4);
+                            ResetTextColor(false);
+                            Console.Write("Arrow Keys - Move");
+                            for (int i = 0; i < GlobalVariables.screenWidth / 4; i++)
+                            {
+                                Console.Write(" ");
+                            }
+                            Console.Write("Enter - Teleport to a random place");
+
+                            ScreenLeft(GlobalVariables.screenWidth / 2 - 20);
+                            ResetTextColor(false);
+                            Console.Write("Esc - Quit        Saving functions coming soon!");
+
+                            ConsoleKey keyPressed;
+                            ConsoleKeyInfo keyInfo = Console.ReadKey(true);
+                            keyPressed = keyInfo.Key;
+
+                            if (keyPressed == ConsoleKey.UpArrow)
+                            {
+                                camX -= 5;
+                            }
+                            else if (keyPressed == ConsoleKey.DownArrow)
+                            {
+                                camX += 5;
+                            }
+                            else if (keyPressed == ConsoleKey.LeftArrow)
+                            {
+                                camY -= 5;
+                            }
+                            else if (keyPressed == ConsoleKey.RightArrow)
+                            {
+                                camY += 5;
+                            }
+                            else if (keyPressed == ConsoleKey.Enter)
+                            {
+                                camX = rand.Next(0, (int)Math.Clamp((worldSize), 0, worldSize));
+                                camY = rand.Next(0, (int)Math.Clamp((worldSize), 0, worldSize));
+                            }
+                            else if (keyPressed == ConsoleKey.Escape)
+                            {
+                                break;
+                            }
+                        }
+                        break;
+                    case "Survival":
+
+                        if (GlobalVariables.playerX == 789)
+                        {
+                            GlobalVariables.playerX = worldSize / 2; //Tries to find spawn point, if cant, sets it to this instead.
+                            GlobalVariables.playerY = worldSize / 2;
+
+                            bool spawnFound = false;
+
+                            for (int x = worldSize / 2; x < worldSize / 2; x++)
+                            {
+
+                                for (int y = worldSize / 2; y < worldSize / 2; y++)
+                                {
+                                    if (GlobalVariables.currentWorldDepth[x, y][0].ToString() == (GlobalVariables.worldSeaLevel - 1).ToString())
+                                    {
+                                        if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[x, y][0].ToString().Contains))
+                                        {
+                                            GlobalVariables.playerX = x;
+                                            GlobalVariables.playerY = y;
+
+                                            spawnFound = true;
+
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (spawnFound) { break; }
+                            }
+
+                            if (!spawnFound)
+                            {
+                                for (int x = worldSize; x < worldSize; x++)
+                                {
+
+                                    for (int y = worldSize; y < worldSize; y++)
+                                    {
+                                        if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[x, y][0].ToString().Contains))
+                                        {
+                                            GlobalVariables.playerX = x;
+                                            GlobalVariables.playerY = y;
+
+                                            spawnFound = true;
+
+                                            break;
+                                        }
+                                    }
+
+                                    if (spawnFound) { break; }
+                                }
+                            }
+                        }
+
+                        while (true)
+                        {
+                            RunSurvivalTick();
+                        }
+                }
+            }
+
+            static void RunSurvivalTick()
+            {
+                if (GlobalVariables.worldTime > 199) //Advencing time
+                {
+                    GlobalVariables.worldDay += 1;
+                    GlobalVariables.worldTime = 1;
+                }
+                else
+                {
+                    GlobalVariables.worldTime += 1;
+                }
+
+                ScreenTop('y');
+
+                ScreenLeft(GlobalVariables.screenWidth / 2 - 10); //Rendering hud
+                ScreenLeft(GlobalVariables.screenWidth / 2 - 10);
+                ResetTextColor(false);
+                Console.Write(GlobalVariables.newWorldName + ", ");
+                if (GlobalVariables.worldTime < 140)
+                {
+                    SetTextColor(190);
+                    Console.Write($"Day {GlobalVariables.worldDay}");
+                }
+                else
+                {
+                    SetTextColor(12);
+                    Console.Write($"Night {GlobalVariables.worldDay}");
+                }
+
+                ScreenLeft(GlobalVariables.screenWidth / 3 - 10);
+                ScreenLeft(GlobalVariables.screenWidth / 3 - 10);
+                ResetTextColor(false);
+                Console.Write("Money: ");
+                SetTextColor(3);
+                Console.Write(GlobalVariables.playerMoney);
+
+                ResetTextColor(false);
+                for (int i = 0; i < GlobalVariables.screenWidth / 3; i++)
+                {
+                    Console.Write(" ");
+                }
+                Console.Write("Energy: ");
+                SetTextColor(50);
+                Console.Write(GlobalVariables.playerEnergy);
+
+                RenderWorld(GlobalVariables.currentWorld, GlobalVariables.newWorldSize, GlobalVariables.playerX - 9, GlobalVariables.playerX + 10, GlobalVariables.playerY - 9, GlobalVariables.playerY + 10, 's'); //Render world
+
+                ConsoleKey keyPressed; //Register key presses
+                ConsoleKeyInfo keyInfo = Console.ReadKey(true);
+                keyPressed = keyInfo.Key;
+
+                if (keyPressed == ConsoleKey.UpArrow)
+                {
+                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[Math.Clamp(GlobalVariables.playerX - 1, 0, GlobalVariables.newWorldSize), GlobalVariables.playerY][0].ToString().Contains))
+                    {
+                        GlobalVariables.playerX -= 1;
+                        GlobalVariables.playerEnergy -= 0.5f;
+                    }
+                }
+                else if (keyPressed == ConsoleKey.DownArrow)
+                {
+                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[Math.Clamp(GlobalVariables.playerX + 1, 0, GlobalVariables.newWorldSize), GlobalVariables.playerY][0].ToString().Contains))
+                    {
+                        GlobalVariables.playerX += 1;
+                        GlobalVariables.playerEnergy -= 0.5f;
+                    }
+                }
+                else if (keyPressed == ConsoleKey.LeftArrow)
+                {
+                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[GlobalVariables.playerX, Math.Clamp(GlobalVariables.playerY - 1, 0, GlobalVariables.newWorldSize)][0].ToString().Contains))
+                    { 
+                        GlobalVariables.playerY -= 1;
+                        GlobalVariables.playerEnergy -= 0.5f;
+                    }
+                }
+                else if (keyPressed == ConsoleKey.RightArrow)
+                {
+                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[GlobalVariables.playerX, Math.Clamp(GlobalVariables.playerY + 1, 0, GlobalVariables.newWorldSize)][0].ToString().Contains))
+                    {
+                        GlobalVariables.playerY += 1;
+                        GlobalVariables.playerEnergy -= 0.5f;
+                    }
+                }
+                else if (keyPressed == ConsoleKey.Escape)
+                {
+                }
             }
 
             static void RenderWorld(string[,] world, int worldSize, int xStart, int xEnd, int yStart, int yEnd, char renderer)
             {
+                string text = "[]";
+
+                ScreenLeft((int)(GlobalVariables.screenWidth / 2 - (xEnd - xStart + 2)));
+
                 int tileNum = 0;
                 for (int x = xStart; x < xEnd; x++)
                 {
@@ -56,31 +264,25 @@ namespace TextWorld
                         {
                             if ((float)tileNum / (xStart - xEnd) == Math.Round((float)tileNum / (xStart - xEnd)))
                             {
-                                Console.Write("\n");
+                                ScreenLeft((int)(GlobalVariables.screenWidth / 2 - (xEnd - xStart + 2)));
                             }
-
-                            bool showDebug = true;
 
                             switch (renderer)
                             {
-                                case 'a':
+                                case 'a': //Old renderer, only renders world map
                                     switch (world[limitedX, limitedY][0].ToString())
                                     {
                                         case "W": //Deep water
                                             SetTextBackgroundColor(27);
-                                            SetTextColor(27);
                                             break;
                                         case "w": //Shallow water
                                             SetTextBackgroundColor(12);
-                                            SetTextColor(12);
                                             break;
                                         case "I": //Ice
                                             SetTextBackgroundColor(14);
-                                            SetTextColor(1);
                                             break;
                                         case "r": //Rocky terrain
                                             SetTextBackgroundColor(244);
-                                            SetTextColor(1);
                                             break;
                                         case "R": //Rock
                                             if (world[limitedX, limitedY][1].ToString() == "v")
@@ -91,7 +293,6 @@ namespace TextWorld
                                             {
                                                 SetTextBackgroundColor(241);
                                             }
-                                            SetTextColor(1);
                                             break;
                                         case "s": //Sand
                                             if (world[limitedX, limitedY][1].ToString() == "V")
@@ -110,19 +311,15 @@ namespace TextWorld
                                             {
                                                 SetTextBackgroundColor(11);
                                             }
-                                            SetTextColor(1);
                                             break;
                                         case "S": //Sand Dune
                                             SetTextBackgroundColor(186);
-                                            SetTextColor(1);
                                             break;
                                         case "f": //Snow
                                             SetTextBackgroundColor(15);
-                                            SetTextColor(1);
                                             break;
                                         case "F": //Snow hill
                                             SetTextBackgroundColor(7);
-                                            SetTextColor(1);
                                             break;
                                         case "g": //Grass
                                             if (world[limitedX, limitedY][1].ToString() == "H")
@@ -149,7 +346,6 @@ namespace TextWorld
                                             {
                                                 SetTextBackgroundColor(10);
                                             }
-                                            SetTextColor(1);
                                             break;
                                         case "G": //High grass
                                             if (world[limitedX, limitedY][1].ToString() == "H")
@@ -176,39 +372,32 @@ namespace TextWorld
                                             {
                                                 SetTextBackgroundColor(2);
                                             }
-                                            SetTextColor(1);
                                             break;
                                         case "d": //Ground
                                             SetTextBackgroundColor(100);
-                                            SetTextColor(1);
                                             break;
                                         case "D": //High ground
                                             SetTextBackgroundColor(58);
-                                            SetTextColor(1);
                                             break;
                                         case "L": //Lava
                                             if (world[limitedX, limitedY][1].ToString() == "H")
                                             {
                                                 SetTextBackgroundColor(208);
-                                                SetTextColor(208);
                                             }
                                             else
                                             {
                                                 SetTextBackgroundColor(202);
-                                                SetTextColor(202);
                                             }
                                             break;
                                         case "l": //Lava
                                             SetTextBackgroundColor(202);
-                                            SetTextColor(202);
                                             break;
                                         default:
                                             SetTextBackgroundColor(0);
-                                            SetTextColor(1);
                                             break;
                                     }
                                     break;
-                                case 'b':
+                                case 'b': //Ancient renderer. Uses old color system.
                                     switch (world[x, y][0].ToString())
                                     {
                                         case "9":
@@ -258,28 +447,208 @@ namespace TextWorld
                                             break;
                                     }
                                     break;
+                                case 's': //Survival default renderer
+                                    switch (world[limitedX, limitedY][0].ToString())
+                                    {
+                                        case "W": //Deep water
+                                            SetTextBackgroundColor(27);
+                                            break;
+                                        case "w": //Shallow water
+                                            SetTextBackgroundColor(12);
+                                            break;
+                                        case "I": //Ice
+                                            SetTextBackgroundColor(14);
+                                            break;
+                                        case "r": //Rocky terrain
+                                            SetTextBackgroundColor(244);
+                                            break;
+                                        case "R": //Rock
+                                            if (world[limitedX, limitedY][1].ToString() == "v")
+                                            {
+                                                SetTextBackgroundColor(88);
+                                            }
+                                            else
+                                            {
+                                                SetTextBackgroundColor(241);
+                                            }
+                                            break;
+                                        case "s": //Sand
+                                            if (world[limitedX, limitedY][1].ToString() == "V")
+                                            {
+                                                SetTextBackgroundColor(238);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "3")
+                                            {
+                                                SetTextBackgroundColor(5);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "9")
+                                            {
+                                                SetTextBackgroundColor(19);
+                                            }
+                                            else
+                                            {
+                                                SetTextBackgroundColor(11);
+                                            }
+                                            break;
+                                        case "S": //Sand Dune
+                                            SetTextBackgroundColor(186);
+                                            break;
+                                        case "f": //Snow
+                                            SetTextBackgroundColor(15);
+                                            break;
+                                        case "F": //Snow hill
+                                            SetTextBackgroundColor(7);
+                                            break;
+                                        case "g": //Grass
+                                            if (world[limitedX, limitedY][1].ToString() == "H")
+                                            {
+                                                SetTextBackgroundColor(106);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "C")
+                                            {
+                                                SetTextBackgroundColor(29);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "J")
+                                            {
+                                                SetTextBackgroundColor(28);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "3")
+                                            {
+                                                SetTextBackgroundColor(82);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "9")
+                                            {
+                                                SetTextBackgroundColor(213);
+                                            }
+                                            else
+                                            {
+                                                SetTextBackgroundColor(10);
+                                            }
+                                            break;
+                                        case "G": //High grass
+                                            if (world[limitedX, limitedY][1].ToString() == "H")
+                                            {
+                                                SetTextBackgroundColor(70);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "C")
+                                            {
+                                                SetTextBackgroundColor(35);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "J")
+                                            {
+                                                SetTextBackgroundColor(22);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "3")
+                                            {
+                                                SetTextBackgroundColor(86);
+                                            }
+                                            else if (world[limitedX, limitedY][1].ToString() == "9")
+                                            {
+                                                SetTextBackgroundColor(219);
+                                            }
+                                            else
+                                            {
+                                                SetTextBackgroundColor(2);
+                                            }
+                                            break;
+                                        case "d": //Ground
+                                            SetTextBackgroundColor(100);
+                                            break;
+                                        case "D": //High ground
+                                            SetTextBackgroundColor(58);
+                                            break;
+                                        case "L": //Lava
+                                            if (world[limitedX, limitedY][1].ToString() == "H")
+                                            {
+                                                SetTextBackgroundColor(208);
+                                            }
+                                            else
+                                            {
+                                                SetTextBackgroundColor(202);
+                                            }
+                                            break;
+                                        case "l": //Lava
+                                            SetTextBackgroundColor(202);
+                                            break;
+                                        default:
+                                            SetTextBackgroundColor(0);
+                                            break;
+                                    }
+                                    switch (GlobalVariables.currentWorldStructures[limitedX, limitedY][0].ToString())
+                                    {
+                                        case "T": //Town
+                                            SetTextColor(27);
+                                            break;
+                                        case "F": //Forest
+                                            SetTextColor(12);
+                                            break;
+                                    }
+                                    break;
                                 default:
                                     SetTextBackgroundColor(0);
-                                    SetTextColor(1);
                                     break;
                             }
 
-                            if (!showDebug)
+                            if (!GlobalVariables.renderDebug && GlobalVariables.currentWorldStructures[limitedX, limitedY] == "[]")
                             {
-                                Console.ForegroundColor = Console.BackgroundColor;
+                                SetTextColor(GlobalVariables.currentTextBackgroundColor);
+                                text = world[limitedX, limitedY];
+                            }
+                            else if (GlobalVariables.currentWorldStructures[limitedX, limitedY] == "[]")
+                            {
+                                SetTextColor(1);
+                                text = world[limitedX, limitedY];
+                            }
+                            else if (GlobalVariables.currentWorldStructures[limitedX, limitedY][0].ToString() == "T") //Checks for towns
+                            {
+                                SetTextColor(8);
+                                text = "/\\";
+                            }
+                            else if (GlobalVariables.currentWorldStructures[limitedX, limitedY][0].ToString() == "F") //Checks for towns
+                            {
+                                SetTextColor(58);
+                                switch (GlobalVariables.currentWorldStructures[limitedX, limitedY][1].ToString())
+                                {
+                                    case "0":
+                                        text = "PP";
+                                        break;
+                                    case "T":
+                                        text = "AA";
+                                        break;
+                                    case "J":
+                                        text = "TT";
+                                        break;
+                                    case "S":
+                                        text = "TT";
+                                        break;
+                                    case "3":
+                                        text = "pp";
+                                        break;
+                                    case "9":
+                                        text = "LL";
+                                        break;
+                                }
+                            }
+                            else
+                            {
+                                SetTextColor(1);
+                                text = "??";
+                            }
+                            tileNum++;
+
+                            if (limitedX == GlobalVariables.playerX && limitedY == GlobalVariables.playerY)
+                            {
+                                SetTextColor(0);
+                                text = "H ";
                             }
 
-                            Console.Write(world[limitedX, limitedY]);
-                            tileNum++;
+                            Console.Write(text);
 
                             Console.BackgroundColor = ConsoleColor.Black;
                             Console.ForegroundColor = ConsoleColor.White;
                         }
                     }
                 }
-
-                Console.ReadLine();
-                Console.Clear();
             }
 
         }
@@ -287,11 +656,13 @@ namespace TextWorld
         static void SetTextColor(int colorIndex)
         {
             Console.Write("\x1b[38;5;" + colorIndex + "m");
+            GlobalVariables.currentTextColor = colorIndex;
         }
 
         static void SetTextBackgroundColor(int colorIndex)
         {
             Console.Write("\x1b[48;5;" + colorIndex + "m");
+            GlobalVariables.currentTextBackgroundColor = colorIndex;
         }
 
         public static void ResetTextColor(bool inverted)
@@ -900,7 +1271,7 @@ namespace TextWorld
 
         void CreateWorld()
         {
-            switch (GlobalVariables.newWorldType)
+            switch (GlobalVariables.newWorldType) //Sets the settings
             {
                 case "Default":
                     GlobalVariables.worldGenerateBiomes = true;
@@ -913,8 +1284,6 @@ namespace TextWorld
                     GlobalVariables.worldTemperature = 50;
                     GlobalVariables.worldSeaLevel = 8;
 
-                    GlobalVariables.worldIslandAmount = 1000;
-
                     break;
                 case "Warm":
                     GlobalVariables.worldGenerateBiomes = true;
@@ -925,8 +1294,6 @@ namespace TextWorld
 
                     GlobalVariables.worldTemperature = 80;
                     GlobalVariables.worldSeaLevel = 8;
-
-                    GlobalVariables.worldIslandAmount = 1000;
 
                     break;
                 case "Desert":
@@ -939,8 +1306,6 @@ namespace TextWorld
 
                     GlobalVariables.worldSeaLevel = 10;
 
-                    GlobalVariables.worldIslandAmount = 1000;
-
                     break;
                 case "Cold":
                     GlobalVariables.worldGenerateBiomes = true;
@@ -951,8 +1316,6 @@ namespace TextWorld
 
                     GlobalVariables.worldTemperature = 20;
                     GlobalVariables.worldSeaLevel = 8;
-
-                    GlobalVariables.worldIslandAmount = 1000;
 
                     break;
                 case "Antarctica":
@@ -965,8 +1328,6 @@ namespace TextWorld
 
                     GlobalVariables.worldSeaLevel = 8;
 
-                    GlobalVariables.worldIslandAmount = 1000;
-
                     break;
                 case "Flooded":
                     GlobalVariables.worldGenerateBiomes = true;
@@ -977,8 +1338,6 @@ namespace TextWorld
 
                     GlobalVariables.worldTemperature = 50;
                     GlobalVariables.worldSeaLevel = 4;
-
-                    GlobalVariables.worldIslandAmount = 1000;
 
                     break;
                 case "Dry":
@@ -991,8 +1350,6 @@ namespace TextWorld
                     GlobalVariables.worldTemperature = 50;
                     GlobalVariables.worldSeaLevel = 10;
 
-                    GlobalVariables.worldIslandAmount = 1000;
-
                     break;
                 case "Flat":
                     GlobalVariables.worldGenerateBiomes = true;
@@ -1003,8 +1360,6 @@ namespace TextWorld
 
                     GlobalVariables.worldTemperature = 50;
                     GlobalVariables.worldSeaLevel = 100;
-
-                    GlobalVariables.worldIslandAmount = 1000;
 
                     break;
                 case "Volcanic":
@@ -1017,8 +1372,6 @@ namespace TextWorld
 
                     GlobalVariables.worldSeaLevel = 10;
 
-                    GlobalVariables.worldIslandAmount = 1000;
-
                     break;
                 case "Inverted":
                     GlobalVariables.worldGenerateBiomes = false;
@@ -1030,14 +1383,17 @@ namespace TextWorld
 
                     GlobalVariables.worldSeaLevel = 8;
 
-                    GlobalVariables.worldIslandAmount = 1000;
-
                     break;
+            }
+
+            if (GlobalVariables.newWorldType != "Custom") //Sets the default island amount if it hasn't been set
+            {
+                GlobalVariables.worldIslandAmount = GlobalVariables.newWorldSize / 20 * GlobalVariables.newWorldSize / 20;
             }
 
             char mainBiome = '0';
 
-            switch (GlobalVariables.worldMainBiome)
+            switch (GlobalVariables.worldMainBiome) //Sets the main biome
             {
                 case "Grassy Plains":
                     mainBiome = '0';
@@ -1076,7 +1432,7 @@ namespace TextWorld
 
             GlobalVariables.currentWorldDepth = GenerateWorldDepth(GlobalVariables.newWorldSize, GlobalVariables.worldIslandAmount, GlobalVariables.worldTemperature, GlobalVariables.worldGenerateBiomes, GlobalVariables.worldGenerateSpecialBiomes, mainBiome); //Generates the depthmap
             GlobalVariables.currentWorld = GenerateWorld(GlobalVariables.newWorldSize, GlobalVariables.currentWorldDepth, GlobalVariables.worldSeaLevel, GlobalVariables.worldGenerateFeatures); //Generates the world map
-            //Generates structures
+            GlobalVariables.currentWorldStructures = GenerateWorldStructures(GlobalVariables.currentWorld, GlobalVariables.currentWorldDepth, GlobalVariables.newWorldSize, GlobalVariables.worldSeaLevel, GlobalVariables.worldGenerateFeatures);//Generates structures
             //Generates entities
 
             var rand = new Random();
@@ -1085,6 +1441,10 @@ namespace TextWorld
             {
 
                 string[,] world = new String[worldSize, worldSize]; //Creates the map
+
+                ScreenTop('d');
+                ScreenLeft(GlobalVariables.screenWidth / 3);
+                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
                 Console.WriteLine("Creating depthmap");
 
                 var rand = new Random();
@@ -1098,7 +1458,11 @@ namespace TextWorld
                     }
                 }
 
+                ScreenTop('d');
+                ScreenLeft(GlobalVariables.screenWidth / 3);
+                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
                 Console.WriteLine("Creating island seeds");
+
                 for (int islands = 0; islands < islandAmount; islands++) //Generates islands
                 {
                     if (temperature == 50f)
@@ -1167,7 +1531,11 @@ namespace TextWorld
 
                 //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
+                ScreenTop('d');
+                ScreenLeft(GlobalVariables.screenWidth / 3);
+                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
                 Console.WriteLine("Extending islands");
+
                 for (int x = 0; x < worldSize; x++)
                 {
                     for (int y = 0; y < worldSize; y++)
@@ -1269,6 +1637,9 @@ namespace TextWorld
                 string[,] world = new String[worldSize, worldSize]; //Generates empty map
                 var rand = new Random();
 
+                ScreenTop('d');
+                ScreenLeft(GlobalVariables.screenWidth / 3);
+                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
                 Console.WriteLine("Creating the map");
 
                 int worldLimit = worldSize - 1;
@@ -1375,7 +1746,11 @@ namespace TextWorld
 
                 if (generateFeatures == true) //Generates features
                 {
+                    ScreenTop('d');
+                    ScreenLeft(GlobalVariables.screenWidth / 3);
+                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
                     Console.WriteLine("Creating water features");
+
                     for (int x = 0; x < worldSize; x++)
                     {
                         for (int y = 0; y < worldSize; y++)
@@ -1404,7 +1779,12 @@ namespace TextWorld
                             }
                         }
                     }
+
+                    ScreenTop('d');
+                    ScreenLeft(GlobalVariables.screenWidth / 3);
+                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
                     Console.WriteLine("Creating other features");
+
                     for (int x = 0; x < worldSize; x++)
                     {
                         for (int y = 0; y < worldSize; y++)
@@ -1467,7 +1847,11 @@ namespace TextWorld
                 }
 
                 //Post-generation; Making the shores look nicer and stuff
+                ScreenTop('d');
+                ScreenLeft(GlobalVariables.screenWidth / 3);
+                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
                 Console.WriteLine("Making the world look nicer");
+
                 for (int x = 0; x < worldSize; x++)
                 {
                     for (int y = 0; y < worldSize; y++)
@@ -1489,6 +1873,130 @@ namespace TextWorld
                 }
 
                 return world;
+            }
+
+            string[,] GenerateWorldStructures(string[,] world, string[,] depthMap, int worldSize, int seaLevel, bool generateFeatures)
+            {
+                string[,] worldStructures = new string[worldSize, worldSize]; //Generates empty map
+                var rand = new Random();
+
+                ScreenTop('d');
+                ScreenLeft(GlobalVariables.screenWidth / 3);
+                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                Console.WriteLine("Creating structure map");
+
+                int worldLimit = worldSize - 1;
+
+                for (int x = 0; x < worldSize; x++)
+                {
+                    for (int y = 0; y < worldSize; y++) //Fills the map with empty spaace
+                    {
+                        worldStructures[x, y] = "[]";
+                    }
+                }
+
+                if (GlobalVariables.worldGenerateStructures)
+                {
+                    ScreenTop('d');
+                    ScreenLeft(GlobalVariables.screenWidth / 3);
+                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                    Console.WriteLine("Creating towns");
+
+                    for (int x = 0; x < worldSize; x++) //Generates towns
+                    {
+                        for (int y = 0; y < worldSize; y++)
+                        {
+                            if (world[x, y][0].ToString() == "g" | world[x, y][0].ToString() == "G" | world[x, y][0].ToString() == "d" | world[x, y][0].ToString() == "D")
+                            {
+                                if (rand.Next(1, 900) == 1)
+                                {
+                                    //Generates Town
+                                    worldStructures[x, y] = $"T{depthMap[x, y][1].ToString()}";
+
+                                    for (int e = 0; e < rand.Next(3, 12); e++)
+                                    {
+                                        worldStructures[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)] = $"T{depthMap[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)][1].ToString()}";
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    ScreenTop('d');
+                    ScreenLeft(GlobalVariables.screenWidth / 3);
+                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                    Console.WriteLine("Creating forests");
+
+                    for (int x = 0; x < worldSize; x++) //Generates forests
+                    {
+                        for (int y = 0; y < worldSize; y++)
+                        {
+                            if (world[x, y][0].ToString() == "G")
+                            {
+                                if (rand.Next(1, 20) == 1)
+                                {
+                                    //Generates Forests
+                                    switch(depthMap[x, y][1].ToString())
+                                    {
+                                        case "0":
+                                            if (rand.Next(1, 10) == 1)
+                                            {
+                                                worldStructures[x, y] = "F0";
+
+                                                for (int e = 0; e < rand.Next(3, 12); e++)
+                                                {
+                                                    worldStructures[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)] = "F0";
+                                                }
+                                            }
+                                            break;
+                                        case "S":
+                                            worldStructures[x, y] = "FS";
+
+                                            for (int e = 0; e < rand.Next(3, 12); e++)
+                                            {
+                                                worldStructures[Math.Clamp(x + rand.Next(-3, 4), 0, worldLimit), Math.Clamp(y + rand.Next(-3, 4), 0, worldLimit)] = "FS";
+                                            }
+                                            break;
+                                        case "T":
+                                            worldStructures[x, y] = "FT";
+
+                                            for (int e = 0; e < rand.Next(5, 17); e++)
+                                            {
+                                                worldStructures[Math.Clamp(x + rand.Next(-3, 4), 0, worldLimit), Math.Clamp(y + rand.Next(-3, 4), 0, worldLimit)] = "FT";
+                                            }
+                                            break;
+                                        case "J":
+                                            worldStructures[x, y] = "FJ";
+
+                                            for (int e = 0; e < rand.Next(18, 40); e++)
+                                            {
+                                                worldStructures[Math.Clamp(x + rand.Next(-4, 5), 0, worldLimit), Math.Clamp(y + rand.Next(-4, 5), 0, worldLimit)] = "FJ";
+                                            }
+                                            break;
+                                        case "3":
+                                            worldStructures[x, y] = "F3";
+
+                                            for (int e = 0; e < rand.Next(3, 12); e++)
+                                            {
+                                                worldStructures[Math.Clamp(x + rand.Next(-3, 4), 0, worldLimit), Math.Clamp(y + rand.Next(-3, 4), 0, worldLimit)] = "F3";
+                                            }
+                                            break;
+                                        case "9":
+                                            worldStructures[x, y] = "F9";
+
+                                            for (int e = 0; e < rand.Next(3, 12); e++)
+                                            {
+                                                worldStructures[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)] = "F9";
+                                            }
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return worldStructures;
             }
 
             string[,] ExtendLand(int x, int y, int worldLimit, string[,] world, string chance1, string chance2)
