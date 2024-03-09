@@ -39,7 +39,7 @@ namespace TextWorld
 
             for (int i = 0; i < Options.Length; i++) 
             {
-                Game.ScreenLeft(GlobalVariables.screenWidth / 12);
+                Game.ScreenLeft(GV.screenWidth / 12);
                 string currentOption = Options[i];
                 if (i == SelectedOption)
                 {

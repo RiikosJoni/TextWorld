@@ -5,6 +5,7 @@ using System.Diagnostics.Metrics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Linq;
+using Spectre.Console;
 
 namespace TextWorld
 {
@@ -27,42 +28,44 @@ namespace TextWorld
 
             Random rand = new();
 
-            while (true)
+            bool running = true;
+
+            while (running)
             {
                 RunMainMenu();
 
-                int screenWidth = GlobalVariables.screenWidth;
-                int screenHeight = GlobalVariables.screenHeight;
+                int screenWidth = GV.screenWidth;
+                int screenHeight = GV.screenHeight;
 
-                int worldSize = GlobalVariables.newWorldSize;
+                int worldSize = GV.newWorldSize;
 
-                switch (GlobalVariables.newWorldGamemode)
+                switch (GV.newWorldGamemode)
                 {
                     case "World Viewer":
-                        int camX = rand.Next(0, (int)Math.Clamp((worldSize - screenWidth * 0.2f), 0, worldSize));
-                        int camY = rand.Next(0, (int)Math.Clamp((worldSize - screenWidth * 0.2f), 0, worldSize));
+                        int camX = rand.Next(0, (int)LimitF(worldSize - screenWidth * 0.2f));
+                        int camY = rand.Next(0, (int)LimitF(worldSize - screenWidth * 0.2f));
 
                         while (true)
                         {
                             ScreenTop('a');
 
-                            RenderWorld(GlobalVariables.currentWorld, worldSize, camX, camX + (int)(screenWidth * 0.5f), camY, camY + (int)(screenWidth * 0.5f), 'a'); //Renders the world map
+                            RenderWorld(GV.currentWorld, worldSize, camX, camX + (int)(screenWidth * 0.5f), camY, camY + (int)(screenWidth * 0.5f), 's'); //Renders the world map
 
-                            ScreenLeft(GlobalVariables.screenWidth / 5);
-                            ScreenLeft(GlobalVariables.screenWidth / 2 - 10);
+                            ScreenLeft(GV.screenWidth / 5);
+                            ScreenLeft(GV.screenWidth / 2 - 10);
                             ResetTextColor(false);
                             Console.Write("World Viewer Mode");
 
-                            ScreenLeft(GlobalVariables.screenWidth / 4);
+                            ScreenLeft(GV.screenWidth / 4);
                             ResetTextColor(false);
                             Console.Write("Arrow Keys - Move");
-                            for (int i = 0; i < GlobalVariables.screenWidth / 4; i++)
+                            for (int i = 0; i < GV.screenWidth / 4; i++)
                             {
                                 Console.Write(" ");
                             }
                             Console.Write("Enter - Teleport to a random place");
 
-                            ScreenLeft(GlobalVariables.screenWidth / 2 - 20);
+                            ScreenLeft(GV.screenWidth / 2 - 20);
                             ResetTextColor(false);
                             Console.Write("Esc - Quit        Saving functions coming soon!");
 
@@ -88,8 +91,8 @@ namespace TextWorld
                             }
                             else if (keyPressed == ConsoleKey.Enter)
                             {
-                                camX = rand.Next(0, (int)Math.Clamp((worldSize), 0, worldSize));
-                                camY = rand.Next(0, (int)Math.Clamp((worldSize), 0, worldSize));
+                                camX = rand.Next(0, worldSize);
+                                camY = rand.Next(0, worldSize);
                             }
                             else if (keyPressed == ConsoleKey.Escape)
                             {
@@ -99,24 +102,24 @@ namespace TextWorld
                         break;
                     case "Survival":
 
-                        if (GlobalVariables.playerX == 789)
+                        if (GV.playerX == 789)
                         {
-                            GlobalVariables.playerX = worldSize / 2; //Tries to find spawn point, if cant, sets it to this instead.
-                            GlobalVariables.playerY = worldSize / 2;
+                            GV.playerX = worldSize / 2; //Tries to find spawn point, if cant, sets it to this instead.
+                            GV.playerY = worldSize / 2;
 
                             bool spawnFound = false;
 
-                            for (int x = worldSize / 2; x < worldSize / 2; x++)
+                            for (int x = (int)(worldSize * 0.75f); x < (int)(worldSize * 0.75f); x++)
                             {
 
-                                for (int y = worldSize / 2; y < worldSize / 2; y++)
+                                for (int y = (int)(worldSize * 0.75f); y < (int)(worldSize * 0.75f); y++)
                                 {
-                                    if (GlobalVariables.currentWorldDepth[x, y][0].ToString() == (GlobalVariables.worldSeaLevel - 1).ToString())
+                                    if (Convert.ToInt32(GV.currentWorldDepth[x, y][0].ToString()) < GV.worldSeaLevel)
                                     {
-                                        if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[x, y][0].ToString().Contains))
+                                        if (GV.currentWorld[x, y][0].ToString() == "s")
                                         {
-                                            GlobalVariables.playerX = x;
-                                            GlobalVariables.playerY = y;
+                                            GV.playerX = x;
+                                            GV.playerY = y;
 
                                             spawnFound = true;
 
@@ -132,78 +135,99 @@ namespace TextWorld
                             {
                                 for (int x = worldSize; x < worldSize; x++)
                                 {
-
                                     for (int y = worldSize; y < worldSize; y++)
                                     {
-                                        if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[x, y][0].ToString().Contains))
+                                        if (!GV.tilesBlockPlayer.Any(GV.currentWorld[x, y][0].ToString().Contains))
                                         {
-                                            GlobalVariables.playerX = x;
-                                            GlobalVariables.playerY = y;
+                                            GV.playerX = x;
+                                            GV.playerY = y;
 
                                             spawnFound = true;
 
                                             break;
                                         }
                                     }
-
+                            
                                     if (spawnFound) { break; }
                                 }
                             }
                         }
 
-                        while (true)
+                        while (running)
                         {
                             RunSurvivalTick();
                         }
+
+                        break;
                 }
+
+                running = true;
             }
 
-            static void RunSurvivalTick()
+            void RunSurvivalTick()
             {
-                if (GlobalVariables.worldTime > 199) //Advencing time
-                {
-                    GlobalVariables.worldDay += 1;
-                    GlobalVariables.worldTime = 1;
-                }
-                else
-                {
-                    GlobalVariables.worldTime += 1;
-                }
-
                 ScreenTop('y');
 
-                ScreenLeft(GlobalVariables.screenWidth / 2 - 10); //Rendering hud
-                ScreenLeft(GlobalVariables.screenWidth / 2 - 10);
+                ScreenLeft(GV.screenWidth / 2 - 10); //Rendering hud
+                ScreenLeft(GV.screenWidth / 2 - 10);
                 ResetTextColor(false);
-                Console.Write(GlobalVariables.newWorldName + ", ");
-                if (GlobalVariables.worldTime < 140)
+                Console.Write(GV.newWorldName + ", ");
+                if (GV.worldTime < 140)
                 {
                     SetTextColor(190);
-                    Console.Write($"Day {GlobalVariables.worldDay}");
+                    Console.Write($"Day {GV.worldDay}");
                 }
                 else
                 {
                     SetTextColor(12);
-                    Console.Write($"Night {GlobalVariables.worldDay}");
+                    Console.Write($"Night {GV.worldDay}");
                 }
 
-                ScreenLeft(GlobalVariables.screenWidth / 3 - 10);
-                ScreenLeft(GlobalVariables.screenWidth / 3 - 10);
+                ScreenLeft(GV.screenWidth / 3 - 10);
+                ScreenLeft(GV.screenWidth / 3 - 10);
                 ResetTextColor(false);
                 Console.Write("Money: ");
                 SetTextColor(3);
-                Console.Write(GlobalVariables.playerMoney);
+                Console.Write(GV.playerMoney);
 
                 ResetTextColor(false);
-                for (int i = 0; i < GlobalVariables.screenWidth / 3; i++)
+                for (int i = 0; i < GV.screenWidth / 3; i++)
                 {
                     Console.Write(" ");
                 }
                 Console.Write("Energy: ");
                 SetTextColor(50);
-                Console.Write(GlobalVariables.playerEnergy);
+                Console.Write(GV.playerEnergy);
 
-                RenderWorld(GlobalVariables.currentWorld, GlobalVariables.newWorldSize, GlobalVariables.playerX - 9, GlobalVariables.playerX + 10, GlobalVariables.playerY - 9, GlobalVariables.playerY + 10, 's'); //Render world
+                ScreenLeft(GV.screenWidth / 2 - 8);
+
+                ResetTextColor(false);
+                Console.Write("Health: ");
+                SetTextColor(1);
+                Console.Write(GV.playerHealth);
+
+                RenderWorld(GV.currentWorld, GV.newWorldSize, GV.playerX - 9, GV.playerX + 10, GV.playerY - 9, GV.playerY + 10, 's'); //Render world
+
+                ScreenLeft(GV.screenWidth / 4 - 10); //Rendering bottom hud
+
+                ScreenLeft(GV.screenWidth / 4 + 6);
+                Console.Write("I - Inventory");
+                for (int i = 0; i < GV.screenWidth / 3 - 20; i++)
+                {
+                    Console.Write(" ");
+                }
+                Console.Write("E - Interact");
+
+                ScreenLeft(GV.screenWidth / 4 + 7);
+                Console.Write("R - Building");
+                for (int i = 0; i < GV.screenWidth / 3 - 20; i++)
+                {
+                    Console.Write(" ");
+                }
+                Console.Write("S - Save");
+
+
+
 
                 ConsoleKey keyPressed; //Register key presses
                 ConsoleKeyInfo keyInfo = Console.ReadKey(true);
@@ -211,38 +235,99 @@ namespace TextWorld
 
                 if (keyPressed == ConsoleKey.UpArrow)
                 {
-                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[Math.Clamp(GlobalVariables.playerX - 1, 0, GlobalVariables.newWorldSize), GlobalVariables.playerY][0].ToString().Contains))
+                    string nextTile = ReturnWorldTile(GV.playerX - 1, GV.playerY, GV.currentWorld, 1);
+                    if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
                     {
-                        GlobalVariables.playerX -= 1;
-                        GlobalVariables.playerEnergy -= 0.5f;
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "[]";
+
+                        GV.playerX -= 1;
+                        GV.playerEnergy -= 0.5f;
+
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "H";
+                        AdvanceTime();
                     }
                 }
                 else if (keyPressed == ConsoleKey.DownArrow)
                 {
-                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[Math.Clamp(GlobalVariables.playerX + 1, 0, GlobalVariables.newWorldSize), GlobalVariables.playerY][0].ToString().Contains))
+                    string nextTile = ReturnWorldTile(GV.playerX + 1, GV.playerY, GV.currentWorld, 1);
+                    if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
                     {
-                        GlobalVariables.playerX += 1;
-                        GlobalVariables.playerEnergy -= 0.5f;
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "[]";
+
+                        GV.playerX += 1;
+                        GV.playerEnergy -= 0.5f;
+
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "H";
+                        AdvanceTime();
                     }
                 }
                 else if (keyPressed == ConsoleKey.LeftArrow)
                 {
-                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[GlobalVariables.playerX, Math.Clamp(GlobalVariables.playerY - 1, 0, GlobalVariables.newWorldSize)][0].ToString().Contains))
-                    { 
-                        GlobalVariables.playerY -= 1;
-                        GlobalVariables.playerEnergy -= 0.5f;
+                    string nextTile = ReturnWorldTile(GV.playerX, GV.playerY - 1, GV.currentWorld, 1);
+                    if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
+                    {
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "[]";
+
+                        GV.playerY -= 1;
+                        GV.playerEnergy -= 0.5f;
+
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "H";
+                        AdvanceTime();
                     }
                 }
                 else if (keyPressed == ConsoleKey.RightArrow)
                 {
-                    if (!GlobalVariables.tilesBlockPlayer.Any(GlobalVariables.currentWorld[GlobalVariables.playerX, Math.Clamp(GlobalVariables.playerY + 1, 0, GlobalVariables.newWorldSize)][0].ToString().Contains))
+                    string nextTile = ReturnWorldTile(GV.playerX, GV.playerY + 1, GV.currentWorld, 1);
+                    if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
                     {
-                        GlobalVariables.playerY += 1;
-                        GlobalVariables.playerEnergy -= 0.5f;
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "[]";
+
+                        GV.playerY += 1;
+                        GV.playerEnergy -= 0.5f;
+
+                        GV.currentWorldEntities[GV.playerX, GV.playerY] = "H";
+                        AdvanceTime();
                     }
+                }
+                else if (keyPressed == ConsoleKey.I)
+                {
+                    ShowInventory();
                 }
                 else if (keyPressed == ConsoleKey.Escape)
                 {
+                    running = false;
+                }
+            }
+
+            void ShowInventory()
+            {
+                ScreenTop('i');
+
+                ScreenLeft(GV.screenWidth / 5);
+                Console.Write("Equipment: \n");
+
+                ScreenLeft(GV.screenWidth / 5);
+                Console.Write($"Weapon: {GV.playerWeapon}");
+                ScreenLeft(GV.screenWidth / 5);
+                Console.Write($"Armor: {GV.playerArmor}");
+                ScreenLeft(GV.screenWidth / 5);
+
+                bool inInv = true;
+
+                while (inInv)
+                {
+                    ConsoleKey keyPressed; //Register key presses
+                    ConsoleKeyInfo keyInfo = Console.ReadKey(true);
+                    keyPressed = keyInfo.Key;
+
+                    if (keyPressed == ConsoleKey.Enter)
+                    {
+                        inInv = false;
+                    }
+                    else if (keyPressed == ConsoleKey.Escape)
+                    {
+                        inInv = false;
+                    }
                 }
             }
 
@@ -250,7 +335,16 @@ namespace TextWorld
             {
                 string text = "[]";
 
-                ScreenLeft((int)(GlobalVariables.screenWidth / 2 - (xEnd - xStart + 2)));
+                bool refreshColor = true;
+                bool refreshBgColor = true;
+
+                int entityColor = 0;
+                bool useEntityColor = false;
+
+                string worldTile;
+                string worldStructureTile;
+
+                ScreenLeft((int)(GV.screenWidth / 2 - (xEnd - xStart + 2)));
 
                 int tileNum = 0;
                 for (int x = xStart; x < xEnd; x++)
@@ -264,7 +358,7 @@ namespace TextWorld
                         {
                             if ((float)tileNum / (xStart - xEnd) == Math.Round((float)tileNum / (xStart - xEnd)))
                             {
-                                ScreenLeft((int)(GlobalVariables.screenWidth / 2 - (xEnd - xStart + 2)));
+                                ScreenLeft((int)(GV.screenWidth / 2 - (xEnd - xStart + 2)));
                             }
 
                             switch (renderer)
@@ -448,140 +542,154 @@ namespace TextWorld
                                     }
                                     break;
                                 case 's': //Survival default renderer
-                                    switch (world[limitedX, limitedY][0].ToString())
-                                    {
-                                        case "W": //Deep water
-                                            SetTextBackgroundColor(27);
-                                            break;
-                                        case "w": //Shallow water
-                                            SetTextBackgroundColor(12);
-                                            break;
-                                        case "I": //Ice
-                                            SetTextBackgroundColor(14);
-                                            break;
-                                        case "r": //Rocky terrain
-                                            SetTextBackgroundColor(244);
-                                            break;
-                                        case "R": //Rock
-                                            if (world[limitedX, limitedY][1].ToString() == "v")
-                                            {
-                                                SetTextBackgroundColor(88);
-                                            }
-                                            else
-                                            {
-                                                SetTextBackgroundColor(241);
-                                            }
-                                            break;
-                                        case "s": //Sand
-                                            if (world[limitedX, limitedY][1].ToString() == "V")
-                                            {
-                                                SetTextBackgroundColor(238);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "3")
-                                            {
-                                                SetTextBackgroundColor(5);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "9")
-                                            {
-                                                SetTextBackgroundColor(19);
-                                            }
-                                            else
-                                            {
-                                                SetTextBackgroundColor(11);
-                                            }
-                                            break;
-                                        case "S": //Sand Dune
-                                            SetTextBackgroundColor(186);
-                                            break;
-                                        case "f": //Snow
-                                            SetTextBackgroundColor(15);
-                                            break;
-                                        case "F": //Snow hill
-                                            SetTextBackgroundColor(7);
-                                            break;
-                                        case "g": //Grass
-                                            if (world[limitedX, limitedY][1].ToString() == "H")
-                                            {
-                                                SetTextBackgroundColor(106);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "C")
-                                            {
-                                                SetTextBackgroundColor(29);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "J")
-                                            {
-                                                SetTextBackgroundColor(28);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "3")
-                                            {
-                                                SetTextBackgroundColor(82);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "9")
-                                            {
-                                                SetTextBackgroundColor(213);
-                                            }
-                                            else
-                                            {
-                                                SetTextBackgroundColor(10);
-                                            }
-                                            break;
-                                        case "G": //High grass
-                                            if (world[limitedX, limitedY][1].ToString() == "H")
-                                            {
-                                                SetTextBackgroundColor(70);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "C")
-                                            {
-                                                SetTextBackgroundColor(35);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "J")
-                                            {
-                                                SetTextBackgroundColor(22);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "3")
-                                            {
-                                                SetTextBackgroundColor(86);
-                                            }
-                                            else if (world[limitedX, limitedY][1].ToString() == "9")
-                                            {
-                                                SetTextBackgroundColor(219);
-                                            }
-                                            else
-                                            {
-                                                SetTextBackgroundColor(2);
-                                            }
-                                            break;
-                                        case "d": //Ground
-                                            SetTextBackgroundColor(100);
-                                            break;
-                                        case "D": //High ground
-                                            SetTextBackgroundColor(58);
-                                            break;
-                                        case "L": //Lava
-                                            if (world[limitedX, limitedY][1].ToString() == "H")
-                                            {
-                                                SetTextBackgroundColor(208);
-                                            }
-                                            else
-                                            {
-                                                SetTextBackgroundColor(202);
-                                            }
-                                            break;
-                                        case "l": //Lava
-                                            SetTextBackgroundColor(202);
-                                            break;
-                                        default:
-                                            SetTextBackgroundColor(0);
-                                            break;
-                                    }
-                                    switch (GlobalVariables.currentWorldStructures[limitedX, limitedY][0].ToString())
+                                    refreshColor = true;
+                                    refreshBgColor = true;
+
+                                    useEntityColor = false;
+
+                                    worldTile = GV.currentWorld[limitedX, limitedY][0].ToString();
+                                    worldStructureTile = GV.currentWorldStructures[limitedX, limitedY][0].ToString();
+
+                                    switch (worldStructureTile)
                                     {
                                         case "T": //Town
-                                            SetTextColor(27);
+                                            SetTextColor(0);
+                                            refreshColor = false;
                                             break;
                                         case "F": //Forest
-                                            SetTextColor(12);
+                                            SetTextColor(58);
+                                            refreshColor = false;
                                             break;
+                                    }
+
+                                    if (refreshBgColor) //Set to false if you want to use a custom bg color for a structure
+                                    {
+                                        switch (worldTile)
+                                        {
+                                            case "W": //Deep water
+                                                SetTextBackgroundColor(27);
+                                                break;
+                                            case "w": //Shallow water
+                                                SetTextBackgroundColor(12);
+                                                break;
+                                            case "I": //Ice
+                                                SetTextBackgroundColor(14);
+                                                break;
+                                            case "r": //Rocky terrain
+                                                SetTextBackgroundColor(244);
+                                                break;
+                                            case "R": //Rock
+                                                if (world[limitedX, limitedY][1].ToString() == "v")
+                                                {
+                                                    SetTextBackgroundColor(88);
+                                                }
+                                                else
+                                                {
+                                                    SetTextBackgroundColor(241);
+                                                }
+                                                break;
+                                            case "s": //Sand
+                                                if (world[limitedX, limitedY][1].ToString() == "V")
+                                                {
+                                                    SetTextBackgroundColor(238);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "3")
+                                                {
+                                                    SetTextBackgroundColor(5);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "9")
+                                                {
+                                                    SetTextBackgroundColor(19);
+                                                }
+                                                else
+                                                {
+                                                    SetTextBackgroundColor(11);
+                                                }
+                                                break;
+                                            case "S": //Sand Dune
+                                                SetTextBackgroundColor(186);
+                                                break;
+                                            case "f": //Snow
+                                                SetTextBackgroundColor(15);
+                                                break;
+                                            case "F": //Snow hill
+                                                SetTextBackgroundColor(7);
+                                                break;
+                                            case "g": //Grass
+                                                if (world[limitedX, limitedY][1].ToString() == "H")
+                                                {
+                                                    SetTextBackgroundColor(106);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "C")
+                                                {
+                                                    SetTextBackgroundColor(29);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "J")
+                                                {
+                                                    SetTextBackgroundColor(28);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "3")
+                                                {
+                                                    SetTextBackgroundColor(82);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "9")
+                                                {
+                                                    SetTextBackgroundColor(213);
+                                                }
+                                                else
+                                                {
+                                                    SetTextBackgroundColor(10);
+                                                }
+                                                break;
+                                            case "G": //High grass
+                                                if (world[limitedX, limitedY][1].ToString() == "H")
+                                                {
+                                                    SetTextBackgroundColor(70);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "C")
+                                                {
+                                                    SetTextBackgroundColor(35);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "J")
+                                                {
+                                                    SetTextBackgroundColor(22);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "3")
+                                                {
+                                                    SetTextBackgroundColor(86);
+                                                }
+                                                else if (world[limitedX, limitedY][1].ToString() == "9")
+                                                {
+                                                    SetTextBackgroundColor(219);
+                                                }
+                                                else
+                                                {
+                                                    SetTextBackgroundColor(2);
+                                                }
+                                                break;
+                                            case "d": //Ground
+                                                SetTextBackgroundColor(100);
+                                                break;
+                                            case "D": //High ground
+                                                SetTextBackgroundColor(58);
+                                                break;
+                                            case "L": //Lava
+                                                if (world[limitedX, limitedY][1].ToString() == "H")
+                                                {
+                                                    SetTextBackgroundColor(208);
+                                                }
+                                                else
+                                                {
+                                                    SetTextBackgroundColor(202);
+                                                }
+                                                break;
+                                            case "l": //Lava
+                                                SetTextBackgroundColor(202);
+                                                break;
+                                            default:
+                                                SetTextBackgroundColor(0);
+                                                break;
+                                        }
                                     }
                                     break;
                                 default:
@@ -589,25 +697,24 @@ namespace TextWorld
                                     break;
                             }
 
-                            if (!GlobalVariables.renderDebug && GlobalVariables.currentWorldStructures[limitedX, limitedY] == "[]")
+                            if (!GV.renderDebug && refreshColor)
                             {
-                                SetTextColor(GlobalVariables.currentTextBackgroundColor);
+                                SetTextColor(GV.currentTextBackgroundColor);
                                 text = world[limitedX, limitedY];
                             }
-                            else if (GlobalVariables.currentWorldStructures[limitedX, limitedY] == "[]")
+                            else if (refreshColor)
                             {
                                 SetTextColor(1);
                                 text = world[limitedX, limitedY];
                             }
-                            else if (GlobalVariables.currentWorldStructures[limitedX, limitedY][0].ToString() == "T") //Checks for towns
+
+                            if (GV.currentWorldStructures[limitedX, limitedY][0].ToString() == "T") //Checks for towns
                             {
-                                SetTextColor(8);
                                 text = "/\\";
                             }
-                            else if (GlobalVariables.currentWorldStructures[limitedX, limitedY][0].ToString() == "F") //Checks for towns
+                            else if (GV.currentWorldStructures[limitedX, limitedY][0].ToString() == "F") //Checks for forests
                             {
-                                SetTextColor(58);
-                                switch (GlobalVariables.currentWorldStructures[limitedX, limitedY][1].ToString())
+                                switch (GV.currentWorldStructures[limitedX, limitedY][1].ToString())
                                 {
                                     case "0":
                                         text = "PP";
@@ -629,20 +736,39 @@ namespace TextWorld
                                         break;
                                 }
                             }
-                            else
+
+                            if (GV.currentWorldEntities[limitedX, limitedY] != "[]")
                             {
-                                SetTextColor(1);
-                                text = "??";
+                                text = GV.currentWorldEntities[limitedX, limitedY][0].ToString() + text[1].ToString();
+                                useEntityColor = true;
+
+                                switch (GV.currentWorldEntities[limitedX, limitedY][0].ToString())
+                                {
+                                    case "H":
+                                        entityColor = 0;
+                                        break;
+                                    default:
+                                        entityColor = 1;
+                                        break;
+                                }
                             }
+
                             tileNum++;
 
-                            if (limitedX == GlobalVariables.playerX && limitedY == GlobalVariables.playerY)
+                            if (!useEntityColor)
                             {
-                                SetTextColor(0);
-                                text = "H ";
+                                Console.Write(text);
                             }
+                            else
+                            {
+                                int currentIndex = GV.currentTextColor;
+                                SetTextColor(entityColor);
 
-                            Console.Write(text);
+                                Console.Write(text[0]);
+
+                                SetTextColor(currentIndex);
+                                Console.Write(text[1]);
+                            }
 
                             Console.BackgroundColor = ConsoleColor.Black;
                             Console.ForegroundColor = ConsoleColor.White;
@@ -650,146 +776,222 @@ namespace TextWorld
                     }
                 }
             }
-
         }
 
-        static void SetTextColor(int colorIndex)
-        {
-            Console.Write("\x1b[38;5;" + colorIndex + "m");
-            GlobalVariables.currentTextColor = colorIndex;
-        }
 
-        static void SetTextBackgroundColor(int colorIndex)
-        {
-            Console.Write("\x1b[48;5;" + colorIndex + "m");
-            GlobalVariables.currentTextBackgroundColor = colorIndex;
-        }
+        //Here go all methods used for menus!!!
 
-        public static void ResetTextColor(bool inverted)
+        private void DisplayOptions()
         {
-            if (!inverted)
+            string promptType = "options";
+            string[] options = { "Screen Size", "Color Scheme", "Back" };
+            Menu optMenu = new(promptType, options);
+            int selectedIndex = optMenu.Run();
+
+            switch (selectedIndex)
             {
-                Console.Write("\x1b[38;5;" + GlobalVariables.defaultTextColor + "m");
-                Console.Write("\x1b[48;5;" + GlobalVariables.defaultTextBackgroundColor + "m");
-            }
-            else
-            {
-                Console.Write("\x1b[38;5;" + GlobalVariables.defaultTextBackgroundColor + "m");
-                Console.Write("\x1b[48;5;" + GlobalVariables.defaultTextColor + "m");
+                case 0:
+                    ScreenSizeOptions();
+                    break;
+                case 1:
+                    ColorSchemeOptions();
+                    break;
+                case 2:
+                    RunMainMenu();
+                    break;
             }
         }
 
-        public static void ScreenTop(char topType)
+        private void ScreenSizeOptions()
         {
+            Console.Clear();
+            ScreenTop('o');
+            Game.ScreenLeft(GV.screenWidth / 5);
+            SetTextColor(10);
+            Console.Write("Change Screen size with arrow keys. Press Enter to confirm.\n");
             ResetTextColor(false);
+
+            SetTextColor(226);
+            Game.ScreenLeft(GV.screenWidth / 5);
+            Console.Write("Screen Size:\n");
+            ResetTextColor(false);
+            Game.ScreenLeft(GV.screenWidth / 5);
+            Console.Write(GV.screenWidth);
+
+            ConsoleKey keyPressed;
+            do
+            {
+                ConsoleKeyInfo keyInfo = Console.ReadKey(true);
+                keyPressed = keyInfo.Key;
+
+                if (keyPressed == ConsoleKey.UpArrow)
+                {
+                    GV.screenWidth += 5;
+                }
+                else if (keyPressed == ConsoleKey.DownArrow)
+                {
+                    GV.screenWidth -= 5;
+                    if (GV.screenWidth < 0)
+                    {
+                        GV.screenWidth = 0;
+                    }
+                }
+
+                Console.Clear();
+                ScreenTop('o');
+                Game.ScreenLeft(GV.screenWidth / 5);
+                SetTextColor(10);
+                Console.Write("Change Screen size with arrow keys. Press Enter to confirm.\n");
+                ResetTextColor(false);
+
+                SetTextColor(226);
+                Game.ScreenLeft(GV.screenWidth / 5);
+                Console.Write("Screen Size:\n");
+                ResetTextColor(false);
+                Game.ScreenLeft(GV.screenWidth / 5);
+                Console.Write(GV.screenWidth);
+
+            } while (keyPressed != ConsoleKey.Enter);
+
+            DisplayOptions();
+        }
+
+        private void ColorSchemeOptions()
+        {
+            string promptType = "clrScheme";
+            string[] options = { "Default", "Classic", "Reverse", "Cool", "Warm", "Ocean", "Air", "Ground", "Inverse Ground", "Volcanic", "Retro", "Error", "Mint", "Bubblegum", "Pink", "Custom" };
+            Menu clrMenu = new(promptType, options);
+            int selectedIndex = clrMenu.Run();
+
+            switch (selectedIndex)
+            {
+                case 0:
+                    GV.defaultTextColor = 253;
+                    GV.defaultTextBackgroundColor = 233;
+                    break;
+                case 1:
+                    GV.defaultTextColor = 15;
+                    GV.defaultTextBackgroundColor = 16;
+                    break;
+                case 2:
+                    GV.defaultTextColor = 233;
+                    GV.defaultTextBackgroundColor = 253;
+                    break;
+                case 3:
+                    GV.defaultTextColor = 50;
+                    GV.defaultTextBackgroundColor = 12;
+                    break;
+                case 4:
+                    GV.defaultTextColor = 214;
+                    GV.defaultTextBackgroundColor = 94;
+                    break;
+                case 5:
+                    GV.defaultTextColor = 27;
+                    GV.defaultTextBackgroundColor = 17;
+                    break;
+                case 6:
+                    GV.defaultTextColor = 253;
+                    GV.defaultTextBackgroundColor = 12;
+                    break;
+                case 7:
+                    GV.defaultTextColor = 10;
+                    GV.defaultTextBackgroundColor = 58;
+                    break;
+                case 8:
+                    GV.defaultTextColor = 213;
+                    GV.defaultTextBackgroundColor = 19;
+                    break;
+                case 9:
+                    GV.defaultTextColor = 208;
+                    GV.defaultTextBackgroundColor = 233;
+                    break;
+                case 10:
+                    GV.defaultTextColor = 40;
+                    GV.defaultTextBackgroundColor = 16;
+                    break;
+                case 11:
+                    GV.defaultTextColor = 196;
+                    GV.defaultTextBackgroundColor = 16;
+                    break;
+                case 12:
+                    GV.defaultTextColor = 75;
+                    GV.defaultTextBackgroundColor = 122;
+                    break;
+                case 13:
+                    GV.defaultTextColor = 48;
+                    GV.defaultTextBackgroundColor = 55;
+                    break;
+                case 14:
+                    GV.defaultTextColor = 219;
+                    GV.defaultTextBackgroundColor = 97;
+                    break;
+                case 15:
+                    CustomColorCreator();
+                    break;
+            }
+            DisplayOptions();
+        }
+
+        private void CustomColorCreator()
+        {
+            bool isInt = false;
 
             Console.Clear();
-            Console.Write("  /");
-            for (int i = 0; i < GlobalVariables.screenWidth - 6; i++)
-            {
-                Console.Write("-");
-            }
-            Console.Write("\\  ");
-
-            switch (topType)
-            {
-                case 'm':
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(10);
-                    Console.Write(" _____             _    __    __              _      _ ");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(10);
-                    Console.Write("/__   \\ ___ __  __| |_ / / /\\ \\ \\ ___   _ __ | |  __| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(58);
-                    Console.Write("  / /\\// _ \\\\ \\/ /| __|\\ \\/  \\/ // _ \\ | '__|| | / _` |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(58);
-                    Console.Write(" / /  |  __/ >  < | |_  \\  /\\  /| (_) || |   | || (_| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(58);
-                    Console.Write(" \\/    \\___|/_/\\_\\ \\__|  \\/  \\/  \\___/ |_|   |_| \\__,_|\n");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(226);
-                    Console.Write($"Version {GlobalVariables.version} Loaded!");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(10);
-                    Console.Write("(Move in the menu with arrow keys.Select an option with Enter.)\n\n\n");
-                    ResetTextColor(false);
-
-                    break;
-                case 'o':
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(10);
-                    Console.Write(" _____             _    __    __              _      _ ");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(10);
-                    Console.Write("/__   \\ ___ __  __| |_ / / /\\ \\ \\ ___   _ __ | |  __| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(58);
-                    Console.Write("  / /\\// _ \\\\ \\/ /| __|\\ \\/  \\/ // _ \\ | '__|| | / _` |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(58);
-                    Console.Write(" / /  |  __/ >  < | |_  \\  /\\  /| (_) || |   | || (_| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(58);
-                    Console.Write(" \\/    \\___|/_/\\_\\ \\__|  \\/  \\/  \\___/ |_|   |_| \\__,_|");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 2);
-                    ResetTextColor(false);
-
-                    break;
-                case 'c':
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("   ___               _         __    __           _     _ ");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("  / __\\ __ ___  __ _| |_ ___  / / /\\ \\ \\___  _ __| | __| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write(" / / | '__/ _ \\/ _` | __/ _ \\ \\ \\/  \\/ / _ \\| '__| |/ _` |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("/ /__| | |  __/ (_| | ||  __/  \\  /\\  / (_) | |  | | (_| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("\\____/_|  \\___|\\__,_|\\__\\___|   \\/  \\/ \\___/|_|  |_|\\__,_|");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write($"{GlobalVariables.newWorldName} Options:\n\n");
-                    ResetTextColor(false);
-
-                    break;
-                case 'd':
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("   ___               _         __    __           _     _ ");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("  / __\\ __ ___  __ _| |_ ___  / / /\\ \\ \\___  _ __| | __| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write(" / / | '__/ _ \\/ _` | __/ _ \\ \\ \\/  \\/ / _ \\| '__| |/ _` |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("/ /__| | |  __/ (_| | ||  __/  \\  /\\  / (_) | |  | | (_| |");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 4);
-                    SetTextColor(245);
-                    Console.Write("\\____/_|  \\___|\\__,_|\\__\\___|   \\/  \\/ \\___/|_|  |_|\\__,_|");
-                    ResetTextColor(false);
-
-                    break;
-            }
-        }
-        public static void ScreenLeft(int margin)
-        {
+            ScreenTop('o');
+            Game.ScreenLeft(GV.screenWidth / 5);
+            SetTextColor(10);
+            Console.Write("Type in the text color index. (0 - 255) Press Enter to confirm.\n");
             ResetTextColor(false);
 
-            Console.Write("\n");
-            for (int i = 0; i < margin; i++)
+            while (isInt == false)
             {
-                Console.Write(" ");
+                string unparsedColor = Console.ReadLine();
+                if (int.TryParse(unparsedColor, out GV.defaultTextColor) == true)
+                {
+                    isInt = true;
+                }
+                else
+                {
+                    Console.Clear();
+                    ScreenTop('o');
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    SetTextColor(0);
+                    Console.Write("Incorrect input.");
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    SetTextColor(10);
+                    Console.Write("Type in the text color index. (0 - 255) Press Enter to confirm.\n");
+                    ResetTextColor(false);
+                }
+            }
+
+            isInt = false;
+
+            Console.Clear();
+            ScreenTop('o');
+            Game.ScreenLeft(GV.screenWidth / 5);
+            SetTextColor(10);
+            Console.Write("Type in the text background color index. (0 - 255) Press Enter to confirm.\n");
+            ResetTextColor(false);
+
+            while (isInt == false)
+            {
+                string unparsedColor = Console.ReadLine();
+                if (int.TryParse(unparsedColor, out GV.defaultTextBackgroundColor) == true)
+                {
+                    isInt = true;
+                }
+                else
+                {
+                    Console.Clear();
+                    ScreenTop('o');
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    SetTextColor(0);
+                    Console.Write("Incorrect input.");
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    SetTextColor(10);
+                    Console.Write("Type in the text color index. (0 - 255) Press Enter to confirm.\n");
+                    ResetTextColor(false);
+                }
             }
         }
 
@@ -820,10 +1022,10 @@ namespace TextWorld
         private void ExitGame()
         {
             ScreenTop('o');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             SetTextColor(10);
-            Console.WriteLine(@$"Thank you for playing TextWorld Version {GlobalVariables.version}!");
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Console.WriteLine(@$"Thank you for playing TextWorld Version {GV.version}!");
+            Game.ScreenLeft(GV.screenWidth / 5);
             SetTextColor(245);
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey(true);
@@ -833,14 +1035,14 @@ namespace TextWorld
         private void DisplayCredits()
         {
             ScreenTop('o');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             SetTextColor(10);
-            Console.Write($"TextWorld Version {GlobalVariables.version} Credits:\n");
+            Console.Write($"TextWorld Version {GV.version} Credits:\n");
             ResetTextColor(false);
 
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             Console.Write("-Most code made by Joni R.\n");
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             Console.Write("-The code to make the text ");
 
             SetTextColor(27);
@@ -865,7 +1067,7 @@ namespace TextWorld
             ResetTextColor(false);
 
             Console.Write(" Alexei Shcherbakov\n");
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
 
             SetTextColor(245);
             Console.Write("Press any key to go back to the main menu...");
@@ -877,7 +1079,7 @@ namespace TextWorld
         private void DisplayWorldSelection()
         {
             string promptType = "worldSelect";
-            string[] options = { "Create New World","Load World [NOT YET POSSIBLE]", "Back" };
+            string[] options = { "Create New World", "Load World [NOT YET POSSIBLE]", "Back" };
             Menu worldSelectMenu = new(promptType, options);
             int selectedIndex = worldSelectMenu.Run();
 
@@ -898,7 +1100,7 @@ namespace TextWorld
         private void DisplayWorldCreation()
         {
             string promptType = "createWorld";
-            string[] options = { $"World Name: {GlobalVariables.newWorldName}", $"Gamemode: {GlobalVariables.newWorldGamemode}", $"Difficulty: {GlobalVariables.newWorldDifficulty}", $"World Type: {GlobalVariables.newWorldType}", $"World Size: {GlobalVariables.newWorldSize}", "CREATE", "Back" };
+            string[] options = { $"World Name: {GV.newWorldName}", $"Gamemode: {GV.newWorldGamemode}", $"Difficulty: {GV.newWorldDifficulty}", $"World Type: {GV.newWorldType}", $"World Size: {GV.newWorldSize}", "CREATE", "Back" };
             Menu worldSelectMenu = new(promptType, options);
             int selectedIndex = worldSelectMenu.Run();
 
@@ -932,13 +1134,13 @@ namespace TextWorld
         {
             Console.Clear();
             ScreenTop('d');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             SetTextColor(245);
             Console.Write("Type in the world name. Press Enter to confirm.\n");
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
 
-            GlobalVariables.newWorldName = Console.ReadLine();
+            GV.newWorldName = Console.ReadLine();
             DisplayWorldCreation();
         }
 
@@ -949,7 +1151,7 @@ namespace TextWorld
             Menu worldTypeMenu = new(promptType, options);
             int selectedIndex = worldTypeMenu.Run();
 
-            GlobalVariables.newWorldType = options[selectedIndex];
+            GV.newWorldType = options[selectedIndex];
 
             if (selectedIndex == 10)
             {
@@ -964,7 +1166,7 @@ namespace TextWorld
         private void DisplayCustomWorldCreation()
         {
             string promptType = "worldType";
-            string[] options = { $"Generate Random Biomes: {GlobalVariables.worldGenerateBiomes}", $"Generate Special Biomes: {GlobalVariables.worldGenerateSpecialBiomes}", $"Main Biome: {GlobalVariables.worldMainBiome}", $"Generate Features: {GlobalVariables.worldGenerateFeatures}", $"Generate Structures: {GlobalVariables.worldGenerateStructures}", $"Temperature: {GlobalVariables.worldTemperature}", $"Sea Level: {GlobalVariables.worldSeaLevel}", $"Island Amount: {GlobalVariables.worldIslandAmount}", "Back" };
+            string[] options = { $"Generate Random Biomes: {GV.worldGenerateBiomes}", $"Generate Special Biomes: {GV.worldGenerateSpecialBiomes}", $"Main Biome: {GV.worldMainBiome}", $"Generate Features: {GV.worldGenerateFeatures}", $"Generate Structures: {GV.worldGenerateStructures}", $"Temperature: {GV.worldTemperature}", $"Sea Level: {GV.worldSeaLevel}", $"Island Amount: {GV.worldIslandAmount}", "Back" };
             Menu worldTypeMenu = new(promptType, options);
             int selectedIndex = worldTypeMenu.Run();
 
@@ -1001,27 +1203,27 @@ namespace TextWorld
 
         private void CustomGenBiomes()
         {
-            if (GlobalVariables.worldGenerateBiomes)
+            if (GV.worldGenerateBiomes)
             {
-                GlobalVariables.worldGenerateBiomes = false;
+                GV.worldGenerateBiomes = false;
             }
             else
             {
-                GlobalVariables.worldGenerateBiomes = true;
+                GV.worldGenerateBiomes = true;
             }
 
-                DisplayCustomWorldCreation();
+            DisplayCustomWorldCreation();
         }
 
         private void CustomGenSpecialBiomes()
         {
-            if (GlobalVariables.worldGenerateSpecialBiomes)
+            if (GV.worldGenerateSpecialBiomes)
             {
-                GlobalVariables.worldGenerateSpecialBiomes = false;
+                GV.worldGenerateSpecialBiomes = false;
             }
             else
             {
-                GlobalVariables.worldGenerateSpecialBiomes = true;
+                GV.worldGenerateSpecialBiomes = true;
             }
 
             DisplayCustomWorldCreation();
@@ -1030,24 +1232,24 @@ namespace TextWorld
         private void CustomMainBiome()
         {
             string promptType = "worldType";
-            string[] options = {"Grassy Plains", "Jungle", "Savanna", "Desert", "Mountains", "Tundra", "Snow", "Volcanic", "Candy", "Inverted", "None"};
+            string[] options = { "Grassy Plains", "Jungle", "Savanna", "Desert", "Mountains", "Tundra", "Snow", "Volcanic", "Candy", "Inverted", "None" };
             Menu mainBiomeMenu = new(promptType, options);
             int selectedIndex = mainBiomeMenu.Run();
 
-            GlobalVariables.worldMainBiome = options[selectedIndex];
+            GV.worldMainBiome = options[selectedIndex];
 
             DisplayCustomWorldCreation();
         }
 
         private void CustomGenFeatures()
         {
-            if (GlobalVariables.worldGenerateFeatures)
+            if (GV.worldGenerateFeatures)
             {
-                GlobalVariables.worldGenerateFeatures = false;
+                GV.worldGenerateFeatures = false;
             }
             else
             {
-                GlobalVariables.worldGenerateFeatures = true;
+                GV.worldGenerateFeatures = true;
             }
 
             DisplayCustomWorldCreation();
@@ -1055,13 +1257,13 @@ namespace TextWorld
 
         private void CustomGenStructures()
         {
-            if (GlobalVariables.worldGenerateStructures)
+            if (GV.worldGenerateStructures)
             {
-                GlobalVariables.worldGenerateStructures = false;
+                GV.worldGenerateStructures = false;
             }
             else
             {
-                GlobalVariables.worldGenerateStructures = true;
+                GV.worldGenerateStructures = true;
             }
 
             DisplayCustomWorldCreation();
@@ -1073,20 +1275,20 @@ namespace TextWorld
 
             Console.Clear();
             ScreenTop('d');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            Game.ScreenLeft(GlobalVariables.screenWidth / 8);
+            Game.ScreenLeft(GV.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 8);
             SetTextColor(245);
             Console.Write("(50 is the default, lower makes cool biomes more common and larger makes hot biomes more common)");
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             SetTextColor(245);
             Console.Write("Type in the temperature. Press Enter to confirm.\n");
             ResetTextColor(false);
 
             while (isInt == false)
             {
-                Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                Game.ScreenLeft(GV.screenWidth / 5);
                 string unparsedSize = Console.ReadLine();
-                if (int.TryParse(unparsedSize, out GlobalVariables.worldTemperature) == true)
+                if (int.TryParse(unparsedSize, out GV.worldTemperature) == true)
                 {
                     isInt = true;
                 }
@@ -1094,14 +1296,14 @@ namespace TextWorld
                 {
                     Console.Clear();
                     ScreenTop('d');
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
                     SetTextColor(0);
                     Console.Write("Incorrect input.");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 8);
+                    Game.ScreenLeft(GV.screenWidth / 8);
                     SetTextColor(245);
                     Console.Write("(50 is the default, lower makes cool biomes more common and larger makes hot biomes more common)");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
                     SetTextColor(245);
                     Console.Write("Type in the temperature. Press Enter to confirm.\n");
                     ResetTextColor(false);
@@ -1117,20 +1319,20 @@ namespace TextWorld
 
             Console.Clear();
             ScreenTop('d');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            Game.ScreenLeft(GlobalVariables.screenWidth / 8);
+            Game.ScreenLeft(GV.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 8);
             SetTextColor(245);
             Console.Write("(8 is the default, lower makes seas higher and larger makes seas lower. >9 for no seas.)");
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             SetTextColor(245);
             Console.Write("Type in the sea level. Press Enter to confirm.\n");
             ResetTextColor(false);
 
             while (isInt == false)
             {
-                Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                Game.ScreenLeft(GV.screenWidth / 5);
                 string unparsedSize = Console.ReadLine();
-                if (int.TryParse(unparsedSize, out GlobalVariables.worldSeaLevel) == true)
+                if (int.TryParse(unparsedSize, out GV.worldSeaLevel) == true)
                 {
                     isInt = true;
                 }
@@ -1138,14 +1340,14 @@ namespace TextWorld
                 {
                     Console.Clear();
                     ScreenTop('d');
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
                     SetTextColor(0);
                     Console.Write("Incorrect input.");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 8);
+                    Game.ScreenLeft(GV.screenWidth / 8);
                     SetTextColor(245);
                     Console.Write("(8 is the default, lower makes seas higher and larger makes seas lower. >9 for no seas.)");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
                     SetTextColor(245);
                     Console.Write("Type in the sea level. Press Enter to confirm.\n");
                     ResetTextColor(false);
@@ -1161,17 +1363,17 @@ namespace TextWorld
 
             Console.Clear();
             ScreenTop('d');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 5);
             SetTextColor(245);
             Console.Write("Type in how many islands you want. Press Enter to confirm.\n");
             ResetTextColor(false);
 
             while (isInt == false)
             {
-                Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                Game.ScreenLeft(GV.screenWidth / 5);
                 string unparsedSize = Console.ReadLine();
-                if (int.TryParse(unparsedSize, out GlobalVariables.worldIslandAmount) == true)
+                if (int.TryParse(unparsedSize, out GV.worldIslandAmount) == true)
                 {
                     isInt = true;
                 }
@@ -1179,11 +1381,11 @@ namespace TextWorld
                 {
                     Console.Clear();
                     ScreenTop('d');
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
                     SetTextColor(0);
                     Console.Write("Incorrect input.");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
                     SetTextColor(245);
                     Console.Write("Type in how many islands you want. Press Enter to confirm.\n");
                     ResetTextColor(false);
@@ -1193,24 +1395,23 @@ namespace TextWorld
             DisplayCustomWorldCreation();
         }
 
-
         private void WorldSizeOptions()
         {
             bool isInt = false;
 
             Console.Clear();
             ScreenTop('d');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            Game.ScreenLeft(GlobalVariables.screenWidth / 8);
+            Game.ScreenLeft(GV.screenWidth / 5);
+            Game.ScreenLeft(GV.screenWidth / 8);
             SetTextColor(245);
             Console.Write("Type in the world size. (Use anything else than 1-5000 with caution!) Press Enter to confirm.\n");
             ResetTextColor(false);
 
             while (isInt == false)
             {
-                Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                Game.ScreenLeft(GV.screenWidth / 5);
                 string unparsedSize = Console.ReadLine();
-                if (int.TryParse(unparsedSize, out GlobalVariables.newWorldSize) == true)
+                if (int.TryParse(unparsedSize, out GV.newWorldSize) == true)
                 {
                     isInt = true;
                 }
@@ -1218,11 +1419,11 @@ namespace TextWorld
                 {
                     Console.Clear();
                     ScreenTop('d');
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
+                    Game.ScreenLeft(GV.screenWidth / 5);
                     SetTextColor(0);
                     Console.Write("Incorrect input.");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 8);
+                    Game.ScreenLeft(GV.screenWidth / 8);
                     SetTextColor(245);
                     Console.Write("Type in the world size. (Use anything else than 1-5000 with caution!) Press Enter to confirm.\n");
                     ResetTextColor(false);
@@ -1234,16 +1435,16 @@ namespace TextWorld
 
         private void WorldGamemodeOptions()
         {
-            switch (GlobalVariables.newWorldGamemode)
+            switch (GV.newWorldGamemode)
             {
                 case "World Viewer":
-                    GlobalVariables.newWorldGamemode = "Survival";
+                    GV.newWorldGamemode = "Survival";
                     break;
                 case "Survival":
-                    GlobalVariables.newWorldGamemode = "Debug Mode";
+                    GV.newWorldGamemode = "Debug Mode";
                     break;
                 case "Debug Mode":
-                    GlobalVariables.newWorldGamemode = "World Viewer";
+                    GV.newWorldGamemode = "World Viewer";
                     break;
             }
             DisplayWorldCreation();
@@ -1251,149 +1452,328 @@ namespace TextWorld
 
         private void WorldDifficultyOptions()
         {
-            switch (GlobalVariables.newWorldDifficulty)
+            switch (GV.newWorldDifficulty)
             {
                 case "Easy":
-                    GlobalVariables.newWorldDifficulty = "Medium";
+                    GV.newWorldDifficulty = "Medium";
                     break;
                 case "Medium":
-                    GlobalVariables.newWorldDifficulty = "Hard";
+                    GV.newWorldDifficulty = "Hard";
                     break;
                 case "Hard":
-                    GlobalVariables.newWorldDifficulty = "One Life";
+                    GV.newWorldDifficulty = "One Life";
                     break;
                 case "One Life":
-                    GlobalVariables.newWorldDifficulty = "Easy";
+                    GV.newWorldDifficulty = "Easy";
                     break;
             }
             DisplayWorldCreation();
         }
 
+        //Here go methods for general hud things
+
+        static void SetTextColor(int colorIndex)
+        {
+            Console.Write("\x1b[38;5;" + colorIndex + "m");
+            GV.currentTextColor = colorIndex;
+        }
+
+        static void SetTextBackgroundColor(int colorIndex)
+        {
+            Console.Write("\x1b[48;5;" + colorIndex + "m");
+            GV.currentTextBackgroundColor = colorIndex;
+        }
+
+        public static void ResetTextColor(bool inverted)
+        {
+            if (!inverted)
+            {
+                Console.Write("\x1b[38;5;" + GV.defaultTextColor + "m");
+                Console.Write("\x1b[48;5;" + GV.defaultTextBackgroundColor + "m");
+            }
+            else
+            {
+                Console.Write("\x1b[38;5;" + GV.defaultTextBackgroundColor + "m");
+                Console.Write("\x1b[48;5;" + GV.defaultTextColor + "m");
+            }
+        }
+
+        public static void ScreenTop(char topType)
+        {
+            ResetTextColor(false);
+
+            Console.Clear();
+            Console.Write("  /");
+            for (int i = 0; i < GV.screenWidth - 6; i++)
+            {
+                Console.Write("-");
+            }
+            Console.Write("\\  ");
+
+            switch (topType)
+            {
+                case 'm':
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(10);
+                    Console.Write(" _____             _    __    __              _      _ ");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(10);
+                    Console.Write("/__   \\ ___ __  __| |_ / / /\\ \\ \\ ___   _ __ | |  __| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(58);
+                    Console.Write("  / /\\// _ \\\\ \\/ /| __|\\ \\/  \\/ // _ \\ | '__|| | / _` |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(58);
+                    Console.Write(" / /  |  __/ >  < | |_  \\  /\\  /| (_) || |   | || (_| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(58);
+                    Console.Write(" \\/    \\___|/_/\\_\\ \\__|  \\/  \\/  \\___/ |_|   |_| \\__,_|\n");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(226);
+                    Console.Write($"Version {GV.version} Loaded!");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(10);
+                    Console.Write("(Move in the menu with arrow keys.Select an option with Enter.)\n\n\n");
+                    ResetTextColor(false);
+
+                    break;
+                case 'o':
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(10);
+                    Console.Write(" _____             _    __    __              _      _ ");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(10);
+                    Console.Write("/__   \\ ___ __  __| |_ / / /\\ \\ \\ ___   _ __ | |  __| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(58);
+                    Console.Write("  / /\\// _ \\\\ \\/ /| __|\\ \\/  \\/ // _ \\ | '__|| | / _` |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(58);
+                    Console.Write(" / /  |  __/ >  < | |_  \\  /\\  /| (_) || |   | || (_| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(58);
+                    Console.Write(" \\/    \\___|/_/\\_\\ \\__|  \\/  \\/  \\___/ |_|   |_| \\__,_|");
+                    Game.ScreenLeft(GV.screenWidth / 2);
+                    ResetTextColor(false);
+
+                    break;
+                case 'c':
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("   ___               _         __    __           _     _ ");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("  / __\\ __ ___  __ _| |_ ___  / / /\\ \\ \\___  _ __| | __| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write(" / / | '__/ _ \\/ _` | __/ _ \\ \\ \\/  \\/ / _ \\| '__| |/ _` |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("/ /__| | |  __/ (_| | ||  __/  \\  /\\  / (_) | |  | | (_| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("\\____/_|  \\___|\\__,_|\\__\\___|   \\/  \\/ \\___/|_|  |_|\\__,_|");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write($"{GV.newWorldName} Options:\n\n");
+                    ResetTextColor(false);
+
+                    break;
+                case 'd':
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("   ___               _         __    __           _     _ ");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("  / __\\ __ ___  __ _| |_ ___  / / /\\ \\ \\___  _ __| | __| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write(" / / | '__/ _ \\/ _` | __/ _ \\ \\ \\/  \\/ / _ \\| '__| |/ _` |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("/ /__| | |  __/ (_| | ||  __/  \\  /\\  / (_) | |  | | (_| |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("\\____/_|  \\___|\\__,_|\\__\\___|   \\/  \\/ \\___/|_|  |_|\\__,_|");
+                    ResetTextColor(false);
+
+                    break;
+                case 'i':
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("  _____                      _                   ");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("  \\_   \\_ ____   _____ _ __ | |_ ___  _ __ _   _ ");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("   / /\\/ '_ \\ \\ / / _ \\ '_ \\| __/ _ \\| '__| | | |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("\\____/ |_| |_|\\_/ \\___|_| |_|\\__\\___/|_|   \\__, |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("\\____/ |_| |_|\\_/ \\___|_| |_|\\__\\___/|_|   \\__, |");
+                    Game.ScreenLeft(GV.screenWidth / 4);
+                    SetTextColor(245);
+                    Console.Write("                                           |___/ ");
+                    ResetTextColor(false);
+
+                    break;
+            }
+        }
+
+        public static void ScreenLeft(int margin)
+        {
+            ResetTextColor(false);
+
+            Console.Write("\n");
+            for (int i = 0; i < margin; i++)
+            {
+                Console.Write(" ");
+            }
+        }
+        public static void ScreenLeft(int location, string str)
+        {
+            ResetTextColor(false);
+
+            Console.Write("\n");
+            for (int i = 0; i < location - (str.Length / 2) - 4; i++)
+            {
+                Console.Write(" ");
+            }
+            Console.Write(str);
+        }
+
+
+        //Here are some miscellanous methods
+
         void CreateWorld()
         {
-            switch (GlobalVariables.newWorldType) //Sets the settings
+            switch (GV.newWorldType) //Sets the settings
             {
                 case "Default":
-                    GlobalVariables.worldGenerateBiomes = true;
-                    GlobalVariables.worldGenerateSpecialBiomes = true;
-                    GlobalVariables.worldMainBiome = "Grassy Plains";
+                    GV.worldGenerateBiomes = true;
+                    GV.worldGenerateSpecialBiomes = true;
+                    GV.worldMainBiome = "Grassy Plains";
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldTemperature = 50;
-                    GlobalVariables.worldSeaLevel = 8;
+                    GV.worldTemperature = 50;
+                    GV.worldSeaLevel = 8;
 
                     break;
                 case "Warm":
-                    GlobalVariables.worldGenerateBiomes = true;
-                    GlobalVariables.worldGenerateSpecialBiomes = true;
+                    GV.worldGenerateBiomes = true;
+                    GV.worldGenerateSpecialBiomes = true;
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldTemperature = 80;
-                    GlobalVariables.worldSeaLevel = 8;
+                    GV.worldTemperature = 80;
+                    GV.worldSeaLevel = 8;
 
                     break;
                 case "Desert":
-                    GlobalVariables.worldGenerateBiomes = false;
-                    GlobalVariables.worldGenerateSpecialBiomes = false;
-                    GlobalVariables.worldMainBiome = "Desert";
+                    GV.worldGenerateBiomes = false;
+                    GV.worldGenerateSpecialBiomes = false;
+                    GV.worldMainBiome = "Desert";
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldSeaLevel = 10;
+                    GV.worldSeaLevel = 10;
 
                     break;
                 case "Cold":
-                    GlobalVariables.worldGenerateBiomes = true;
-                    GlobalVariables.worldGenerateSpecialBiomes = true;
+                    GV.worldGenerateBiomes = true;
+                    GV.worldGenerateSpecialBiomes = true;
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldTemperature = 20;
-                    GlobalVariables.worldSeaLevel = 8;
+                    GV.worldTemperature = 20;
+                    GV.worldSeaLevel = 8;
 
                     break;
                 case "Antarctica":
-                    GlobalVariables.worldGenerateBiomes = false;
-                    GlobalVariables.worldGenerateSpecialBiomes = false;
-                    GlobalVariables.worldMainBiome = "Snow";
+                    GV.worldGenerateBiomes = false;
+                    GV.worldGenerateSpecialBiomes = false;
+                    GV.worldMainBiome = "Snow";
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldSeaLevel = 8;
+                    GV.worldSeaLevel = 8;
 
                     break;
                 case "Flooded":
-                    GlobalVariables.worldGenerateBiomes = true;
-                    GlobalVariables.worldGenerateSpecialBiomes = true;
+                    GV.worldGenerateBiomes = true;
+                    GV.worldGenerateSpecialBiomes = true;
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldTemperature = 50;
-                    GlobalVariables.worldSeaLevel = 4;
+                    GV.worldTemperature = 50;
+                    GV.worldSeaLevel = 4;
 
                     break;
                 case "Dry":
-                    GlobalVariables.worldGenerateBiomes = true;
-                    GlobalVariables.worldGenerateSpecialBiomes = true;
+                    GV.worldGenerateBiomes = true;
+                    GV.worldGenerateSpecialBiomes = true;
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldTemperature = 50;
-                    GlobalVariables.worldSeaLevel = 10;
+                    GV.worldTemperature = 50;
+                    GV.worldSeaLevel = 10;
 
                     break;
                 case "Flat":
-                    GlobalVariables.worldGenerateBiomes = true;
-                    GlobalVariables.worldGenerateSpecialBiomes = true;
+                    GV.worldGenerateBiomes = true;
+                    GV.worldGenerateSpecialBiomes = true;
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldTemperature = 50;
-                    GlobalVariables.worldSeaLevel = 100;
+                    GV.worldTemperature = 50;
+                    GV.worldSeaLevel = 100;
 
                     break;
                 case "Volcanic":
-                    GlobalVariables.worldGenerateBiomes = false;
-                    GlobalVariables.worldGenerateSpecialBiomes = false;
-                    GlobalVariables.worldMainBiome = "Volcanic";
+                    GV.worldGenerateBiomes = false;
+                    GV.worldGenerateSpecialBiomes = false;
+                    GV.worldMainBiome = "Volcanic";
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldSeaLevel = 10;
+                    GV.worldSeaLevel = 10;
 
                     break;
                 case "Inverted":
-                    GlobalVariables.worldGenerateBiomes = false;
-                    GlobalVariables.worldGenerateSpecialBiomes = false;
-                    GlobalVariables.worldMainBiome = "Inverted";
+                    GV.worldGenerateBiomes = false;
+                    GV.worldGenerateSpecialBiomes = false;
+                    GV.worldMainBiome = "Inverted";
 
-                    GlobalVariables.worldGenerateFeatures = true;
-                    GlobalVariables.worldGenerateStructures = true;
+                    GV.worldGenerateFeatures = true;
+                    GV.worldGenerateStructures = true;
 
-                    GlobalVariables.worldSeaLevel = 8;
+                    GV.worldSeaLevel = 8;
 
                     break;
             }
 
-            if (GlobalVariables.newWorldType != "Custom") //Sets the default island amount if it hasn't been set
+            if (GV.newWorldType != "Custom") //Sets the default island amount if it hasn't been set
             {
-                GlobalVariables.worldIslandAmount = GlobalVariables.newWorldSize / 20 * GlobalVariables.newWorldSize / 20;
+                GV.worldIslandAmount = GV.newWorldSize / 20 * GV.newWorldSize / 20;
             }
 
             char mainBiome = '0';
 
-            switch (GlobalVariables.worldMainBiome) //Sets the main biome
+            switch (GV.worldMainBiome) //Sets the main biome
             {
                 case "Grassy Plains":
                     mainBiome = '0';
@@ -1430,10 +1810,10 @@ namespace TextWorld
                     break;
             }
 
-            GlobalVariables.currentWorldDepth = GenerateWorldDepth(GlobalVariables.newWorldSize, GlobalVariables.worldIslandAmount, GlobalVariables.worldTemperature, GlobalVariables.worldGenerateBiomes, GlobalVariables.worldGenerateSpecialBiomes, mainBiome); //Generates the depthmap
-            GlobalVariables.currentWorld = GenerateWorld(GlobalVariables.newWorldSize, GlobalVariables.currentWorldDepth, GlobalVariables.worldSeaLevel, GlobalVariables.worldGenerateFeatures); //Generates the world map
-            GlobalVariables.currentWorldStructures = GenerateWorldStructures(GlobalVariables.currentWorld, GlobalVariables.currentWorldDepth, GlobalVariables.newWorldSize, GlobalVariables.worldSeaLevel, GlobalVariables.worldGenerateFeatures);//Generates structures
-            //Generates entities
+            GV.currentWorldDepth = GenerateWorldDepth(GV.newWorldSize, GV.worldIslandAmount, GV.worldTemperature, GV.worldGenerateBiomes, GV.worldGenerateSpecialBiomes, mainBiome); //Generates the depthmap
+            GV.currentWorld = GenerateWorld(GV.newWorldSize, GV.currentWorldDepth, GV.worldSeaLevel, GV.worldGenerateFeatures); //Generates the world map
+            GV.currentWorldStructures = GenerateWorldStructures(GV.currentWorld, GV.currentWorldDepth, GV.newWorldSize, GV.worldSeaLevel, GV.worldGenerateFeatures);//Generates structures
+            GV.currentWorldEntities = GenerateWorldEntities(GV.currentWorld, GV.newWorldSize);
 
             var rand = new Random();
 
@@ -1443,8 +1823,8 @@ namespace TextWorld
                 string[,] world = new String[worldSize, worldSize]; //Creates the map
 
                 ScreenTop('d');
-                ScreenLeft(GlobalVariables.screenWidth / 3);
-                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                ScreenLeft(GV.screenWidth / 3);
+                ScreenLeft((int)(GV.screenWidth / 2.5f));
                 Console.WriteLine("Creating depthmap");
 
                 var rand = new Random();
@@ -1459,8 +1839,8 @@ namespace TextWorld
                 }
 
                 ScreenTop('d');
-                ScreenLeft(GlobalVariables.screenWidth / 3);
-                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                ScreenLeft(GV.screenWidth / 3);
+                ScreenLeft((int)(GV.screenWidth / 2.5f));
                 Console.WriteLine("Creating island seeds");
 
                 for (int islands = 0; islands < islandAmount; islands++) //Generates islands
@@ -1532,8 +1912,8 @@ namespace TextWorld
                 //RenderWorld(world, worldSize, 0, worldSize, 0, worldSize, 'b');
 
                 ScreenTop('d');
-                ScreenLeft(GlobalVariables.screenWidth / 3);
-                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                ScreenLeft(GV.screenWidth / 3);
+                ScreenLeft((int)(GV.screenWidth / 2.5f));
                 Console.WriteLine("Extending islands");
 
                 for (int x = 0; x < worldSize; x++)
@@ -1638,8 +2018,8 @@ namespace TextWorld
                 var rand = new Random();
 
                 ScreenTop('d');
-                ScreenLeft(GlobalVariables.screenWidth / 3);
-                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                ScreenLeft(GV.screenWidth / 3);
+                ScreenLeft((int)(GV.screenWidth / 2.5f));
                 Console.WriteLine("Creating the map");
 
                 int worldLimit = worldSize - 1;
@@ -1747,8 +2127,8 @@ namespace TextWorld
                 if (generateFeatures == true) //Generates features
                 {
                     ScreenTop('d');
-                    ScreenLeft(GlobalVariables.screenWidth / 3);
-                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                    ScreenLeft(GV.screenWidth / 3);
+                    ScreenLeft((int)(GV.screenWidth / 2.5f));
                     Console.WriteLine("Creating water features");
 
                     for (int x = 0; x < worldSize; x++)
@@ -1781,8 +2161,8 @@ namespace TextWorld
                     }
 
                     ScreenTop('d');
-                    ScreenLeft(GlobalVariables.screenWidth / 3);
-                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                    ScreenLeft(GV.screenWidth / 3);
+                    ScreenLeft((int)(GV.screenWidth / 2.5f));
                     Console.WriteLine("Creating other features");
 
                     for (int x = 0; x < worldSize; x++)
@@ -1848,8 +2228,8 @@ namespace TextWorld
 
                 //Post-generation; Making the shores look nicer and stuff
                 ScreenTop('d');
-                ScreenLeft(GlobalVariables.screenWidth / 3);
-                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                ScreenLeft(GV.screenWidth / 3);
+                ScreenLeft((int)(GV.screenWidth / 2.5f));
                 Console.WriteLine("Making the world look nicer");
 
                 for (int x = 0; x < worldSize; x++)
@@ -1881,8 +2261,8 @@ namespace TextWorld
                 var rand = new Random();
 
                 ScreenTop('d');
-                ScreenLeft(GlobalVariables.screenWidth / 3);
-                ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                ScreenLeft(GV.screenWidth / 3);
+                ScreenLeft((int)(GV.screenWidth / 2.5f));
                 Console.WriteLine("Creating structure map");
 
                 int worldLimit = worldSize - 1;
@@ -1895,11 +2275,11 @@ namespace TextWorld
                     }
                 }
 
-                if (GlobalVariables.worldGenerateStructures)
+                if (GV.worldGenerateStructures)
                 {
                     ScreenTop('d');
-                    ScreenLeft(GlobalVariables.screenWidth / 3);
-                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                    ScreenLeft(GV.screenWidth / 3);
+                    ScreenLeft((int)(GV.screenWidth / 2.5f));
                     Console.WriteLine("Creating towns");
 
                     for (int x = 0; x < worldSize; x++) //Generates towns
@@ -1915,7 +2295,7 @@ namespace TextWorld
 
                                     for (int e = 0; e < rand.Next(3, 12); e++)
                                     {
-                                        worldStructures[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)] = $"T{depthMap[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)][1].ToString()}";
+                                        worldStructures[Limit(x + rand.Next(-2, 3)), Limit(y + rand.Next(-2, 3))] = $"T{depthMap[Limit(x + rand.Next(-2, 3)), Limit(y + rand.Next(-2, 3))][1].ToString()}";
                                     }
                                 }
                             }
@@ -1923,8 +2303,8 @@ namespace TextWorld
                     }
 
                     ScreenTop('d');
-                    ScreenLeft(GlobalVariables.screenWidth / 3);
-                    ScreenLeft((int)(GlobalVariables.screenWidth / 2.5f));
+                    ScreenLeft(GV.screenWidth / 3);
+                    ScreenLeft((int)(GV.screenWidth / 2.5f));
                     Console.WriteLine("Creating forests");
 
                     for (int x = 0; x < worldSize; x++) //Generates forests
@@ -1939,13 +2319,16 @@ namespace TextWorld
                                     switch(depthMap[x, y][1].ToString())
                                     {
                                         case "0":
-                                            if (rand.Next(1, 10) == 1)
-                                            {
-                                                worldStructures[x, y] = "F0";
+                                            worldStructures[x, y] = "F0";
 
-                                                for (int e = 0; e < rand.Next(3, 12); e++)
+                                            for (int e = 0; e < rand.Next(3, 12); e++)
+                                            {
+                                                int xOffset = rand.Next(-2, 3);
+                                                int yOffset = rand.Next(-2, 3);
+
+                                                if (!GV.tilesAllowTrees.Any(GV.currentWorld[x, y][0].ToString().Contains))
                                                 {
-                                                    worldStructures[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)] = "F0";
+                                                    worldStructures[Limit(x + xOffset), Limit(y + yOffset)] = "F0";
                                                 }
                                             }
                                             break;
@@ -1954,7 +2337,13 @@ namespace TextWorld
 
                                             for (int e = 0; e < rand.Next(3, 12); e++)
                                             {
-                                                worldStructures[Math.Clamp(x + rand.Next(-3, 4), 0, worldLimit), Math.Clamp(y + rand.Next(-3, 4), 0, worldLimit)] = "FS";
+                                                int xOffset = rand.Next(-3, 4);
+                                                int yOffset = rand.Next(-3, 4);
+
+                                                if (!GV.tilesAllowTrees.Any(GV.currentWorld[x, y][0].ToString().Contains))
+                                                {
+                                                    worldStructures[Limit(x + xOffset), Limit(y + yOffset)] = "FS";
+                                                }
                                             }
                                             break;
                                         case "T":
@@ -1962,7 +2351,13 @@ namespace TextWorld
 
                                             for (int e = 0; e < rand.Next(5, 17); e++)
                                             {
-                                                worldStructures[Math.Clamp(x + rand.Next(-3, 4), 0, worldLimit), Math.Clamp(y + rand.Next(-3, 4), 0, worldLimit)] = "FT";
+                                                int xOffset = rand.Next(-3, 4);
+                                                int yOffset = rand.Next(-3, 4);
+
+                                                if (!GV.tilesAllowTrees.Any(GV.currentWorld[x, y][0].ToString().Contains))
+                                                {
+                                                    worldStructures[Limit(x + xOffset), Limit(y + yOffset)] = "FT";
+                                                }
                                             }
                                             break;
                                         case "J":
@@ -1970,15 +2365,27 @@ namespace TextWorld
 
                                             for (int e = 0; e < rand.Next(18, 40); e++)
                                             {
-                                                worldStructures[Math.Clamp(x + rand.Next(-4, 5), 0, worldLimit), Math.Clamp(y + rand.Next(-4, 5), 0, worldLimit)] = "FJ";
+                                                int xOffset = rand.Next(-4, 5);
+                                                int yOffset = rand.Next(-4, 5);
+
+                                                if (!GV.tilesAllowTrees.Any(GV.currentWorld[x, y][0].ToString().Contains))
+                                                {
+                                                    worldStructures[Limit(x + xOffset), Limit(y + yOffset)] = "FJ";
+                                                }
                                             }
                                             break;
                                         case "3":
                                             worldStructures[x, y] = "F3";
 
-                                            for (int e = 0; e < rand.Next(3, 12); e++)
+                                            for (int e = 0; e < rand.Next(5, 15); e++)
                                             {
-                                                worldStructures[Math.Clamp(x + rand.Next(-3, 4), 0, worldLimit), Math.Clamp(y + rand.Next(-3, 4), 0, worldLimit)] = "F3";
+                                                int xOffset = rand.Next(-2, 3);
+                                                int yOffset = rand.Next(-4, 5);
+
+                                                if (!GV.tilesAllowTrees.Any(GV.currentWorld[x, y][0].ToString().Contains)) 
+                                                {
+                                                    worldStructures[Limit(x + xOffset), Limit(y + yOffset)] = "F3";
+                                                }
                                             }
                                             break;
                                         case "9":
@@ -1986,7 +2393,13 @@ namespace TextWorld
 
                                             for (int e = 0; e < rand.Next(3, 12); e++)
                                             {
-                                                worldStructures[Math.Clamp(x + rand.Next(-2, 3), 0, worldLimit), Math.Clamp(y + rand.Next(-2, 3), 0, worldLimit)] = "F9";
+                                                int xOffset = rand.Next(-2, 3);
+                                                int yOffset = rand.Next(-2, 3);
+
+                                                if (!GV.tilesAllowTrees.Any(GV.currentWorld[x, y][0].ToString().Contains))
+                                                {
+                                                    worldStructures[Limit(x + xOffset), Limit(y + yOffset)] = "F9";
+                                                }
                                             }
                                             break;
                                     }
@@ -1999,6 +2412,22 @@ namespace TextWorld
                 return worldStructures;
             }
 
+            string[,] GenerateWorldEntities(string[,] world, int worldSize)
+            {
+                string[,] worldEntities = new string[worldSize, worldSize]; //Generates empty map
+                var rand = new Random();
+
+                for (int x = 0; x < worldSize; x++)
+                {
+                    for (int y = 0; y < worldSize; y++) //Fills the map with empty spaace
+                    {
+                        worldEntities[x, y] = "[]";
+                    }
+                }
+
+                return worldEntities;
+            }
+
             string[,] ExtendLand(int x, int y, int worldLimit, string[,] world, string chance1, string chance2)
             {
                 var rand = new Random();
@@ -2008,15 +2437,15 @@ namespace TextWorld
                     int xPosition = rand.Next(-1, 2);
                     int yPosition = rand.Next(-1, 2);
 
-                    if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() == "9")
+                    if (ReturnWorldTile(x + xPosition, y + yPosition, world, 1) == "9")
                     {
                         if (rand.Next(0, 3) > 0)
                         {
-                            world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = chance1;
+                            world[Limit(x + xPosition), Limit(y + yPosition)] = chance1;
                         }
                         else
                         {
-                            world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = chance2;
+                            world[Limit(x + xPosition), Limit(y + yPosition)] = chance2;
                         }
                     }
                 }
@@ -2066,14 +2495,14 @@ namespace TextWorld
                         {
                             if (tile != "null")
                             {
-                                world[Math.Clamp((x + tiles), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = tile;
+                                world[Limit(x + tiles), Limit(y + radius - tiles)] = tile;
                             }
                         }
                         else
                         {
                             if (altTile != "null")
                             {
-                                world[Math.Clamp((x + tiles), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = altTile;
+                                world[Limit(x + tiles), Limit(y + radius - tiles)] = altTile;
                             }
                         }
                     }
@@ -2083,14 +2512,14 @@ namespace TextWorld
                         {
                             if (tile != "null")
                             {
-                                world[Math.Clamp((x + radius - (tiles - radius)), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = tile;
+                                world[Limit(x + radius - (tiles - radius)), Limit(y + radius - tiles)] = tile;
                             }
                         }
                         else
                         {
                             if (altTile != "null")
                             {
-                                world[Math.Clamp((x + radius - (tiles - radius)), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = altTile;
+                                world[Limit(x + radius - (tiles - radius)), Limit(y + radius - tiles)] = altTile;
                             }
                         }
                     }
@@ -2104,14 +2533,14 @@ namespace TextWorld
                         {
                             if (tile != "null")
                             {
-                                world[Math.Clamp((x - tiles), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = tile;
+                                world[Limit(x - tiles), Limit(y + radius - tiles)] = tile;
                             }
                         }
                         else
                         {
                             if (altTile != "null")
                             {
-                                world[Math.Clamp((x - tiles), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = altTile;
+                                world[Limit(x - tiles), Limit(y + radius - tiles)] = altTile;
                             }
                         }
                     }
@@ -2121,14 +2550,14 @@ namespace TextWorld
                         {
                             if (tile != "null")
                             {
-                                world[Math.Clamp((x - radius + (tiles - radius)), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = tile;
+                                world[Limit(x - radius + (tiles - radius)), Limit(y + radius - tiles)] = tile;
                             }
                         }
                         else
                         {
                             if (altTile != "null")
                             {
-                                world[Math.Clamp((x - radius + (tiles - radius)), 0, worldLimit), Math.Clamp((y + radius - tiles), 0, worldLimit)] = altTile;
+                                world[Limit(x - radius + (tiles - radius)), Limit(y + radius - tiles)] = altTile;
                             }
                         }
                     }
@@ -2153,13 +2582,13 @@ namespace TextWorld
                             int xPosition = rand.Next(-1, 2);
                             int yPosition = rand.Next(-1, 2);
 
-                            world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "ww";
+                            world[Limit(x + xPosition), Limit(y + yPosition)] = "ww";
                             for (int extendChance2 = 0; extendChance2 < 2; extendChance2++)
                             {
                                 int xPosition2 = rand.Next(-1, 2);
                                 int yPosition2 = rand.Next(-1, 2);
 
-                                world[Math.Clamp((x + xPosition + xPosition2), 0, worldLimit), Math.Clamp((y + yPosition + yPosition2), 0, worldLimit)] = "GD";
+                                world[Limit(x + xPosition + xPosition2), Limit(y + yPosition + yPosition2)] = "GD";
                             }
                         }
                         break;
@@ -2181,7 +2610,7 @@ namespace TextWorld
                                     int genTries = 0;
                                     bool canGen = true;
 
-                                    while (world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "W" | world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "w")
+                                    while (ReturnWorldTile(newX + xPosition, newY + yPosition, world, 1) == "W" | ReturnWorldTile(newX + xPosition, newY + yPosition, world, 1) == "w")
                                     {
                                         if (genTries > 100) //Makes sure so the program doesnt get stuck
                                         {
@@ -2196,15 +2625,15 @@ namespace TextWorld
 
                                     if (canGen)
                                     {
-                                        if (world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][0].ToString() == "f" | world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][0].ToString() == "F")
+                                        if (ReturnWorldTile(newX + xPosition - xDirection, newY + yPosition - yDirection, world, 1) == "f" | ReturnWorldTile(newX + xPosition - xDirection, newY + yPosition - yDirection, world, 1) == "F")
                                         {
-                                            world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)] = "II";
-                                            world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)] = "II";
+                                            world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)] = "II";
+                                            world[Limit(newX + xPosition), Limit(newY + yPosition)] = "II";
                                         }
-                                        else if (depthMap[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][1].ToString() != "H")
+                                        else if (ReturnWorldTile(newX + xPosition - xDirection, newY + yPosition - yDirection, depthMap, 2) != "H")
                                         {
-                                            world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)] = "WR";
-                                            world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)] = "WR";
+                                            world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)] = "WR";
+                                            world[Limit(newX + xPosition), Limit(newY + yPosition)] = "WR";
                                         }
                                     }
 
@@ -2218,17 +2647,17 @@ namespace TextWorld
                                             int xPosition2 = rand.Next(-1, 2);
                                             int yPosition2 = rand.Next(-1, 2);
 
-                                            if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "G")
+                                            switch (ReturnWorldTile(newX + xPosition2, newY + yPosition2, world, 1))
                                             {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "gg";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "S")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "ss";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "F")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "ff";
+                                                case "G":
+                                                    world[Limit(newX + xPosition2), Limit(newY + yPosition2)] = "gg";
+                                                    break;
+                                                case "S":
+                                                    world[Limit(newX + xPosition2), Limit(newY + yPosition2)] = "ss";
+                                                    break;
+                                                case "F":
+                                                    world[Limit(newX + xPosition2), Limit(newY + yPosition2)] = "ff";
+                                                    break;
                                             }
                                         }
                                     }
@@ -2243,7 +2672,7 @@ namespace TextWorld
                                 }
 
                                 break;
-                            case 'b':
+                            case 'b': //Lava rivers
                                 for (int extendChance = 0; extendChance < rand.Next(5, 10); extendChance++)
                                 {
                                     int xPosition = rand.Next(-1, 2) + xDirection;
@@ -2252,7 +2681,7 @@ namespace TextWorld
                                     int genTries = 0;
                                     bool canGen = true;
 
-                                    while (world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "L" | world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "l" | world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "r" | world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)][0].ToString() == "R")
+                                    while (world[Limit(newX + xPosition), Limit(newY + yPosition)][0].ToString() == "L" | world[Limit(newX + xPosition), Limit(newY + yPosition)][0].ToString() == "l" | world[Limit(newX + xPosition), Limit(newY + yPosition)][0].ToString() == "r" | world[Limit(newX + xPosition), Limit(newY + yPosition)][0].ToString() == "R")
                                     {
                                         if (genTries > 5) //Makes sure so the program doesnt get stuck
                                         {
@@ -2267,15 +2696,15 @@ namespace TextWorld
 
                                     if (canGen)
                                     {
-                                        if (world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][0].ToString() == "f" | world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)][0].ToString() == "F")
+                                        if (world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)][0].ToString() == "f" | world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)][0].ToString() == "F")
                                         {
-                                            world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)] = "rr";
-                                            world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)] = "rr";
+                                            world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)] = "rr";
+                                            world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)] = "rr";
                                         }
                                         else
                                         {
-                                            world[Math.Clamp((newX + xPosition - xDirection), 0, worldLimit), Math.Clamp((newY + yPosition - yDirection), 0, worldLimit)] = "ll";
-                                            world[Math.Clamp((newX + xPosition), 0, worldLimit), Math.Clamp((newY + yPosition), 0, worldLimit)] = "ll";
+                                            world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)] = "ll";
+                                            world[Limit(newX + xPosition - xDirection), Limit(newY + yPosition - yDirection)] = "ll";
                                         }
                                     }
 
@@ -2289,38 +2718,8 @@ namespace TextWorld
                                             int xPosition2 = rand.Next(-1, 2);
                                             int yPosition2 = rand.Next(-1, 2);
 
-                                            if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "G")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "S")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "F")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "g")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "s")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "f")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "W")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "RV";
-                                            }
-                                            else if (world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)][0].ToString() == "w")
-                                            {
-                                                world[Math.Clamp((newX + xPosition2), 0, worldLimit), Math.Clamp((newY + yPosition2), 0, worldLimit)] = "rV";
-                                            }
+                                            world[Limit(newX + xPosition2), Limit(newY + yPosition2)] = "rr";
+
                                         }
                                     }
                                 }
@@ -2343,17 +2742,17 @@ namespace TextWorld
                             int xPosition = rand.Next(-size - 2, size + 2);
                             int yPosition = rand.Next(-size - 2, size + 2);
 
-                            if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() == "g")
+                            if (world[Limit(x + xPosition), Limit(y + yPosition)][0].ToString() == "g")
                             {
-                                world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "GG";
+                                world[Limit(x + xPosition), Limit(y + yPosition)] = "GG";
                             }
-                            else if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() == "s")
+                            else if (world[Limit(x + xPosition), Limit(y + yPosition)][0].ToString() == "s")
                             {
-                                world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "SS";
+                                world[Limit(x + xPosition), Limit(y + yPosition)] = "SS";
                             }
-                            else if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() == "f")
+                            else if (world[Limit(x + xPosition), Limit(y + yPosition)][0].ToString() == "f")
                             {
-                                world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "GG";
+                                world[Limit(x + xPosition), Limit(y + yPosition)] = "GG";
                             }
                         }
 
@@ -2375,7 +2774,7 @@ namespace TextWorld
                             int xPosition = rand.Next(-1, 2);
                             int yPosition = rand.Next(-1, 2);
 
-                            world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "LH";
+                            world[Limit(x + xPosition), Limit(y + yPosition)] = "LH";
                         }
 
                         if (rand.Next(0, 2) == 0)
@@ -2409,17 +2808,17 @@ namespace TextWorld
                             int xPosition = rand.Next(-3, 4);
                             int yPosition = rand.Next(-3, 4);
 
-                            if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "W" && world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][1].ToString() == "C")
+                            if (world[Limit(x + xPosition), Limit(y + yPosition)][0].ToString() != "W" && world[Limit(x + xPosition), Limit(y + yPosition)][1].ToString() == "C")
                             {
                                 canGenerate = true;
                                 break;
                             }
-                            else if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "W" && world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][1].ToString() == "f")
+                            else if (world[Limit(x + xPosition), Limit(y + yPosition)][0].ToString() != "W" && world[Limit(x + xPosition), Limit(y + yPosition)][1].ToString() == "f")
                             {
                                 canGenerate = true;
                                 break;
                             }
-                            else if (world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][0].ToString() != "W" && world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)][1].ToString() == "F")
+                            else if (world[Limit(x + xPosition), Limit(y + yPosition)][0].ToString() != "W" && world[Limit(x + xPosition), Limit(y + yPosition)][1].ToString() == "F")
                             {
                                 canGenerate = true;
                                 break;
@@ -2435,13 +2834,13 @@ namespace TextWorld
                                 int xPosition = rand.Next(-1, 2);
                                 int yPosition = rand.Next(-1, 2);
 
-                                world[Math.Clamp((x + xPosition), 0, worldLimit), Math.Clamp((y + yPosition), 0, worldLimit)] = "II";
+                                world[Limit(x + xPosition), Limit(y + yPosition)] = "II";
                                 for (int extendChance2 = 0; extendChance2 < 2; extendChance2++)
                                 {
                                     int xPosition2 = rand.Next(-1, 2);
                                     int yPosition2 = rand.Next(-1, 2);
 
-                                    world[Math.Clamp((x + xPosition + xPosition2), 0, worldLimit), Math.Clamp((y + yPosition + yPosition2), 0, worldLimit)] = "II";
+                                    world[Limit(x + xPosition + xPosition2), Limit(y + yPosition + yPosition2)] = "II";
                                 }
                             }
                         }
@@ -2458,219 +2857,41 @@ namespace TextWorld
             }
         }
 
-        private void DisplayOptions() 
-        {
-            string promptType = "options";
-            string[] options = { "Screen Size", "Color Scheme", "Back" };
-            Menu optMenu = new(promptType, options);
-            int selectedIndex = optMenu.Run();
+        //And here are the more "Technical" methods. Idk what to call them but they're here anyway
 
-            switch (selectedIndex)
+        private string ReturnWorldTile(int x, int y, string[,] world, int type)
+        {
+            if (type != 0)
             {
-                case 0:
-                    ScreenSizeOptions();
-                    break;
-                case 1:
-                    ColorSchemeOptions();
-                    break;
-                case 2:
-                    RunMainMenu();
-                    break;
+                return world[Math.Clamp(x, 0, GV.newWorldSize - 1), Math.Clamp(y, 0, GV.newWorldSize - 1)][type - 1].ToString();
+            }
+            else
+            {
+                return world[Math.Clamp(x, 0, GV.newWorldSize - 1), Math.Clamp(y, 0, GV.newWorldSize - 1)].ToString();
             }
         }
 
-        private void ScreenSizeOptions()
+        private void AdvanceTime()
         {
-            Console.Clear();
-            ScreenTop('o');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            SetTextColor(10);
-            Console.Write("Change Screen size with arrow keys. Press Enter to confirm.\n");
-            ResetTextColor(false);
-
-            SetTextColor(226);
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            Console.Write("Screen Size:\n");
-            ResetTextColor(false);
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            Console.Write(GlobalVariables.screenWidth);
-
-            ConsoleKey keyPressed;
-            do
+            if (GV.worldTime > 199) //Advencing time
             {
-                ConsoleKeyInfo keyInfo = Console.ReadKey(true);
-                keyPressed = keyInfo.Key;
-
-                if (keyPressed == ConsoleKey.UpArrow)
-                {
-                    GlobalVariables.screenWidth += 5;
-                }
-                else if (keyPressed == ConsoleKey.DownArrow)
-                {
-                    GlobalVariables.screenWidth -= 5;
-                    if (GlobalVariables.screenWidth < 0)
-                    {
-                        GlobalVariables.screenWidth = 0;
-                    }
-                }
-
-                Console.Clear();
-                ScreenTop('o');
-                Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                SetTextColor(10);
-                Console.Write("Change Screen size with arrow keys. Press Enter to confirm.\n");
-                ResetTextColor(false);
-
-                SetTextColor(226);
-                Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                Console.Write("Screen Size:\n");
-                ResetTextColor(false);
-                Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                Console.Write(GlobalVariables.screenWidth);
-
-            } while (keyPressed != ConsoleKey.Enter);
-
-            DisplayOptions();
-        }
-
-        private void ColorSchemeOptions()
-        {
-            string promptType = "clrScheme";
-            string[] options = { "Default", "Classic", "Reverse", "Cool", "Warm", "Ocean", "Air", "Ground", "Inverse Ground", "Volcanic", "Retro", "Error", "Mint", "Bubblegum", "Pink", "Custom"};
-            Menu clrMenu = new(promptType, options);
-            int selectedIndex = clrMenu.Run();
-
-            switch (selectedIndex)
-            {
-                case 0:
-                    GlobalVariables.defaultTextColor = 253;
-                    GlobalVariables.defaultTextBackgroundColor = 233;
-                    break;
-                case 1:
-                    GlobalVariables.defaultTextColor = 15;
-                    GlobalVariables.defaultTextBackgroundColor = 16;
-                    break;
-                case 2:
-                    GlobalVariables.defaultTextColor = 233;
-                    GlobalVariables.defaultTextBackgroundColor = 253;
-                    break;
-                case 3:
-                    GlobalVariables.defaultTextColor = 50;
-                    GlobalVariables.defaultTextBackgroundColor = 12;
-                    break;
-                case 4:
-                    GlobalVariables.defaultTextColor = 214;
-                    GlobalVariables.defaultTextBackgroundColor = 94;
-                    break;
-                case 5:
-                    GlobalVariables.defaultTextColor = 27;
-                    GlobalVariables.defaultTextBackgroundColor = 17;
-                    break;
-                case 6:
-                    GlobalVariables.defaultTextColor = 253;
-                    GlobalVariables.defaultTextBackgroundColor = 12;
-                    break;
-                case 7:
-                    GlobalVariables.defaultTextColor = 10;
-                    GlobalVariables.defaultTextBackgroundColor = 58;
-                    break;
-                case 8:
-                    GlobalVariables.defaultTextColor = 213;
-                    GlobalVariables.defaultTextBackgroundColor = 19;
-                    break;
-                case 9:
-                    GlobalVariables.defaultTextColor = 208;
-                    GlobalVariables.defaultTextBackgroundColor = 233;
-                    break;
-                case 10:
-                    GlobalVariables.defaultTextColor = 40;
-                    GlobalVariables.defaultTextBackgroundColor = 16;
-                    break;
-                case 11:
-                    GlobalVariables.defaultTextColor = 196;
-                    GlobalVariables.defaultTextBackgroundColor = 16;
-                    break;
-                case 12:
-                    GlobalVariables.defaultTextColor = 75;
-                    GlobalVariables.defaultTextBackgroundColor = 122;
-                    break;
-                case 13:
-                    GlobalVariables.defaultTextColor = 48;
-                    GlobalVariables.defaultTextBackgroundColor = 55;
-                    break;
-                case 14:
-                    GlobalVariables.defaultTextColor = 219;
-                    GlobalVariables.defaultTextBackgroundColor = 97;
-                    break;
-                case 15:
-                    CustomColorCreator();
-                    break;
+                GV.worldDay += 1;
+                GV.worldTime = 1;
             }
-            DisplayOptions();
-        }
-
-        private void CustomColorCreator()
-        {
-            bool isInt = false;
-
-            Console.Clear();
-            ScreenTop('o');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            SetTextColor(10);
-            Console.Write("Type in the text color index. (0 - 255) Press Enter to confirm.\n");
-            ResetTextColor(false);
-
-            while (isInt == false)
+            else
             {
-                string unparsedColor = Console.ReadLine();
-                if (int.TryParse(unparsedColor, out GlobalVariables.defaultTextColor) == true)
-                {
-                    isInt = true;
-                }
-                else
-                {
-                    Console.Clear();
-                    ScreenTop('o');
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    SetTextColor(0);
-                    Console.Write("Incorrect input.");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    SetTextColor(10);
-                    Console.Write("Type in the text color index. (0 - 255) Press Enter to confirm.\n");
-                    ResetTextColor(false);
-                }
-            }
-
-            isInt = false;
-
-            Console.Clear();
-            ScreenTop('o');
-            Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-            SetTextColor(10);
-            Console.Write("Type in the text background color index. (0 - 255) Press Enter to confirm.\n");
-            ResetTextColor(false);
-
-            while (isInt == false)
-            {
-                string unparsedColor = Console.ReadLine();
-                if (int.TryParse(unparsedColor, out GlobalVariables.defaultTextBackgroundColor) == true)
-                {
-                    isInt = true;
-                }
-                else
-                {
-                    Console.Clear();
-                    ScreenTop('o');
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    SetTextColor(0);
-                    Console.Write("Incorrect input.");
-                    Game.ScreenLeft(GlobalVariables.screenWidth / 5);
-                    SetTextColor(10);
-                    Console.Write("Type in the text color index. (0 - 255) Press Enter to confirm.\n");
-                    ResetTextColor(false);
-                }
+                GV.worldTime += 1;
             }
         }
 
+        private int Limit(int num)
+        {
+            return Math.Clamp(num, 0, GV.newWorldSize - 1);
+        }
+
+        private float LimitF(float num)
+        {
+            return Math.Clamp(num, 0, GV.newWorldSize - 1);
+        }
     }
 }

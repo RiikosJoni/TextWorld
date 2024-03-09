@@ -12,7 +12,7 @@ namespace TextWorld
         }
     }
 
-    public static class GlobalVariables
+    public static class GV
     {
         public static string version = "0.5";
 
@@ -30,7 +30,7 @@ namespace TextWorld
         //Used for world gen
         public static string newWorldName = "New World";
 
-        public static int newWorldSize = 1000;
+        public static int newWorldSize = 300;
         public static string newWorldType = "Default";
 
         public static string newWorldGamemode = "Survival";
@@ -60,6 +60,7 @@ namespace TextWorld
 
         public static string[] tilesBlockPlayer = {"W", "L", "l"};
         public static string[] tilesBlockBuildings = { "W", "w", "L", "l" };
+        public static string[] tilesAllowTrees = { "g", "G", "s", "d", "D" };
 
         public static int worldDay = 1;
         public static int worldTime = 1;
@@ -69,8 +70,12 @@ namespace TextWorld
 
         public static int playerMoney = 0;
         public static float playerEnergy = 100;
+        public static int playerHealth = 100;
 
-        public static List<string> playerInventory;
+        public static Dictionary<string, int> playerInventory = new Dictionary<string, int> { };
+
+        public static string playerWeapon = "None";
+        public static string playerArmor = "None";
 
         public static bool renderDebug = false;
     }
