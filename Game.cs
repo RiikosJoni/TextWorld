@@ -106,13 +106,13 @@ namespace TextWorld
                         {
                             GV.playerX = worldSize / 2; //Tries to find spawn point, if cant, sets it to this instead.
                             GV.playerY = worldSize / 2;
-
+                            
                             bool spawnFound = false;
 
-                            for (int x = (int)(worldSize * 0.75f); x < (int)(worldSize * 0.75f); x++)
+                            for (int x = (int)(worldSize * 0.25f); x < (int)(worldSize * 0.75f); x++)
                             {
 
-                                for (int y = (int)(worldSize * 0.75f); y < (int)(worldSize * 0.75f); y++)
+                                for (int y = (int)(worldSize * 0.25f); y < (int)(worldSize * 0.75f); y++)
                                 {
                                     if (Convert.ToInt32(GV.currentWorldDepth[x, y][0].ToString()) < GV.worldSeaLevel)
                                     {
@@ -153,6 +153,8 @@ namespace TextWorld
                             }
                         }
 
+                        RefreshSurvival();
+
                         while (running)
                         {
                             RunSurvivalTick();
@@ -164,7 +166,7 @@ namespace TextWorld
                 running = true;
             }
 
-            void RunSurvivalTick()
+            void RefreshSurvival() 
             {
                 ScreenTop('y');
 
@@ -225,16 +227,20 @@ namespace TextWorld
                     Console.Write(" ");
                 }
                 Console.Write("S - Save");
+            }
 
-
-
-
+            void RunSurvivalTick()
+            {
                 ConsoleKey keyPressed; //Register key presses
                 ConsoleKeyInfo keyInfo = Console.ReadKey(true);
                 keyPressed = keyInfo.Key;
 
+                bool refreshScreen = false;
+
                 if (keyPressed == ConsoleKey.UpArrow)
                 {
+                    refreshScreen = true;
+
                     string nextTile = ReturnWorldTile(GV.playerX - 1, GV.playerY, GV.currentWorld, 1);
                     if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
                     {
@@ -249,6 +255,8 @@ namespace TextWorld
                 }
                 else if (keyPressed == ConsoleKey.DownArrow)
                 {
+                    refreshScreen = true;
+
                     string nextTile = ReturnWorldTile(GV.playerX + 1, GV.playerY, GV.currentWorld, 1);
                     if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
                     {
@@ -263,6 +271,8 @@ namespace TextWorld
                 }
                 else if (keyPressed == ConsoleKey.LeftArrow)
                 {
+                    refreshScreen = true;
+
                     string nextTile = ReturnWorldTile(GV.playerX, GV.playerY - 1, GV.currentWorld, 1);
                     if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
                     {
@@ -277,6 +287,8 @@ namespace TextWorld
                 }
                 else if (keyPressed == ConsoleKey.RightArrow)
                 {
+                    refreshScreen = true;
+
                     string nextTile = ReturnWorldTile(GV.playerX, GV.playerY + 1, GV.currentWorld, 1);
                     if (!GV.tilesBlockPlayer.Any(p => p == nextTile))
                     {
@@ -293,41 +305,153 @@ namespace TextWorld
                 {
                     ShowInventory();
                 }
+                else if (keyPressed == ConsoleKey.Z)
+                {
+                    AddToInv("Wood", 7);
+                    AddToInv("Stone", 0);
+                    AddToInv("ERROR", 8);
+                    AddToInv("ERROR", -7);
+                    AddToInv("Buckthorn", -1);
+                }
+                else if (keyPressed == ConsoleKey.X)
+                {
+                    AddToInv(rand.Next(10000, 99999).ToString(), (Int16)rand.Next(1, 99));
+                }
                 else if (keyPressed == ConsoleKey.Escape)
                 {
                     running = false;
+                }
+
+                if (refreshScreen)
+                {
+                    RefreshSurvival();
                 }
             }
 
             void ShowInventory()
             {
-                ScreenTop('i');
-
-                ScreenLeft(GV.screenWidth / 5);
-                Console.Write("Equipment: \n");
-
-                ScreenLeft(GV.screenWidth / 5);
-                Console.Write($"Weapon: {GV.playerWeapon}");
-                ScreenLeft(GV.screenWidth / 5);
-                Console.Write($"Armor: {GV.playerArmor}");
-                ScreenLeft(GV.screenWidth / 5);
+                foreach (var (key, value) in GV.playerInventory) //remove useless items
+                {
+                    if (GV.playerInventory[key] <= 0)
+                    {
+                        GV.playerInventory.Remove(key);
+                    }
+                }
 
                 bool inInv = true;
+                short itemNum = 1;
+                short selectedItem = 1;
+                short page = 1;
+                short maxPage = (Int16)Math.Ceiling(GV.playerInventory.Count() / 10.0d);
+
+                if (maxPage == 0) { maxPage = 1; }
 
                 while (inInv)
                 {
+                    itemNum = 1;
+
+                    ScreenTop('i');
+
+                    ScreenLeft(GV.screenWidth / 5);
+                    Console.Write($"Weapon: {GV.playerWeapon}");
+
+                    ScreenLeft(GV.screenWidth / 5);
+                    Console.Write($"Armor: {GV.playerArmor}");
+                    ScreenLeft(GV.screenWidth / 5);
+                    Console.Write($"Equipment: {GV.playerEquipment}");
+                    ScreenLeft(GV.screenWidth / 5);
+                    ScreenLeft(GV.screenWidth / 5);
+                    Console.Write("Items:");
+                    ScreenLeft(GV.screenWidth / 5);
+                    ScreenLeft(GV.screenWidth / 5);
+
+                    foreach (var (key, value) in GV.playerInventory)
+                    {
+                        if ((Int16)Math.Ceiling(itemNum / 10.0d) == page)
+                        {
+                            if (itemNum == selectedItem) { ResetTextColor(true); }
+                            Console.Write($"{key} - {value}");
+                            if (itemNum == selectedItem) { Console.Write(" <"); }
+                            ScreenLeft(GV.screenWidth / 5);
+                        }
+
+                        itemNum++;
+                    }
+
+                    ScreenLeft(GV.screenWidth / 5);
+                    ScreenLeft(GV.screenWidth / 5);
+                    ScreenLeft(GV.screenWidth / 5);
+                    Console.Write($"Page {page}/{maxPage} - Use Arrow Keys to switch pages");
+                    ScreenLeft(GV.screenWidth / 5);
+                    Console.Write("ESC - Back");
+
                     ConsoleKey keyPressed; //Register key presses
                     ConsoleKeyInfo keyInfo = Console.ReadKey(true);
                     keyPressed = keyInfo.Key;
 
-                    if (keyPressed == ConsoleKey.Enter)
+                    if (keyPressed == ConsoleKey.Escape)
                     {
                         inInv = false;
+                        RefreshSurvival();
                     }
-                    else if (keyPressed == ConsoleKey.Escape)
+                    else if (keyPressed == ConsoleKey.DownArrow)
                     {
-                        inInv = false;
+                        selectedItem++;
+                        if (selectedItem > (Int16)GV.playerInventory.Count())
+                        {
+                            selectedItem = 1;
+                            page = 1;
+                        }
+
+                        if (selectedItem > page * 10)
+                        {
+                            page++;
+                        }
                     }
+                    else if (keyPressed == ConsoleKey.UpArrow)
+                    {
+                        selectedItem--;
+                        if (selectedItem < 1)
+                        {
+                            selectedItem = (Int16)GV.playerInventory.Count();
+                            page = maxPage;
+                        }
+
+                        if (selectedItem < (page - 1) * 10 + 1)
+                        {
+                            page--;
+                        }
+                    }
+                    else if (keyPressed == ConsoleKey.LeftArrow)
+                    {
+                        page--;
+                        if (page < 1)
+                        {
+                            page = maxPage;
+                        }
+                        selectedItem = (Int16)(page * 10 - 9);
+                    }
+                    else if (keyPressed == ConsoleKey.RightArrow)
+                    {
+                        page++;
+                        if (page > maxPage)
+                        {
+                            page = 1;
+                        }
+                        selectedItem = (Int16)(page * 10 - 9);
+                    }
+                }
+            }
+
+            void AddToInv(string type, short amount)
+            {
+                if (GV.playerInventory.ContainsKey(type))
+                {
+                    GV.playerInventory[type] += amount;
+                }
+                else
+                {
+                    GV.playerInventory.Add(type, amount);
                 }
             }
 
@@ -1611,13 +1735,14 @@ namespace TextWorld
                     Console.Write("   / /\\/ '_ \\ \\ / / _ \\ '_ \\| __/ _ \\| '__| | | |");
                     Game.ScreenLeft(GV.screenWidth / 4);
                     SetTextColor(245);
-                    Console.Write("\\____/ |_| |_|\\_/ \\___|_| |_|\\__\\___/|_|   \\__, |");
+                    Console.Write("/\\/ /_ | | | \\ V /  __/ | | | || (_) | |  | |_| |");
                     Game.ScreenLeft(GV.screenWidth / 4);
                     SetTextColor(245);
                     Console.Write("\\____/ |_| |_|\\_/ \\___|_| |_|\\__\\___/|_|   \\__, |");
                     Game.ScreenLeft(GV.screenWidth / 4);
                     SetTextColor(245);
                     Console.Write("                                           |___/ ");
+
                     ResetTextColor(false);
 
                     break;

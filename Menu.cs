@@ -18,6 +18,8 @@ namespace TextWorld
 
         private void DisplayOptions()
         {
+            Console.Clear();
+
             string prefix = ">";
 
             switch (PromptType)
@@ -71,11 +73,12 @@ namespace TextWorld
 
         public int Run()
         {
+            DisplayOptions();
+
             ConsoleKey keyPressed;
             do
             {
-                Console.Clear();
-                DisplayOptions();
+                bool refreshOptions = false;
 
                 ConsoleKeyInfo keyInfo = Console.ReadKey(true);
                 keyPressed = keyInfo.Key;
@@ -83,10 +86,12 @@ namespace TextWorld
                 if (keyPressed == ConsoleKey.UpArrow)
                 {
                     SelectedOption--;
+                    refreshOptions = true;
                 }
                 else if (keyPressed == ConsoleKey.DownArrow)
                 {
                     SelectedOption++;
+                    refreshOptions = true;
                 }
 
                 if (SelectedOption < 0)
@@ -96,6 +101,11 @@ namespace TextWorld
                 else if (SelectedOption > Options.Length - 1)
                 {
                     SelectedOption = 0;
+                }
+
+                if (refreshOptions)
+                {
+                    DisplayOptions();
                 }
             } while (keyPressed != ConsoleKey.Enter);
 

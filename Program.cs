@@ -72,10 +72,11 @@ namespace TextWorld
         public static float playerEnergy = 100;
         public static int playerHealth = 100;
 
-        public static Dictionary<string, int> playerInventory = new Dictionary<string, int> { };
+        public static Dictionary<string, short> playerInventory = new Dictionary<string, short> { };
 
         public static string playerWeapon = "None";
         public static string playerArmor = "None";
+        public static string playerEquipment = "None";
 
         public static bool renderDebug = false;
     }
